@@ -1,36 +1,96 @@
 # ralph-go
 
-A Go-based executable that runs a Ralph loop with configurable prompts and settings.
+An autonomous development loop executor (Ralph Loop) that uses Claude AI to automatically plan, implement, test, and commit code changes based on a Product Requirements Document (PRD).
 
-## Overview
+## What is Ralph?
 
-This project provides a `ralph` executable that executes a Ralph loop. The executable comes with a standard set of prompts and configuration files built-in. These defaults can be overridden by placing corresponding files in a `.ralph` directory.
+Ralph is an automated development assistant that runs a structured workflow to complete tasks from a PRD. It operates autonomously, making decisions and implementing code without requiring constant human intervention. The tool executes a 5-step loop:
+
+1. **Planning** - Reviews the PRD, selects tasks, and creates detailed implementation plans
+2. **Implementation** - Writes code, runs tests, fixes errors, and ensures test coverage
+3. **Cleanup** - Updates documentation, removes temporary files, and maintains project state
+4. **Self-Improvement** (every 5th iteration) - Analyzes the codebase for critical issues and technical debt
+5. **Commit** - Commits changes with appropriate commit messages
+
+Ralph can resume from checkpoints if interrupted, handles timeouts with retries, and automatically detects when work is complete or blocked.
 
 ## Features
 
-- Executes a Ralph loop
-- Standard prompts included by default
-- Configuration override: customize prompts and settings via `.ralph` directory
-- Single executable deployment
+- **Autonomous operation** - Makes decisions independently without asking for confirmation
+- **State persistence** - Automatically resumes from the last checkpoint if interrupted
+- **Configurable prompts** - Customize behavior by overriding prompts in `.ralph` directory
+- **Built-in defaults** - Works out of the box with sensible defaults
+- **Single executable** - Easy deployment, no complex setup required
+- **Error handling** - Automatic retries on timeouts, graceful handling of blockers
+
+## Prerequisites
+
+- Go 1.21 or later (for building from source)
+- The `claude` CLI tool installed and configured (Ralph uses this to interact with Claude AI)
+- A `.ralph/PRD.md` file in your project directory (Product Requirements Document with tasks to complete)
 
 ## Configuration
 
-The `ralph` executable includes a standard set of prompts and configuration files. To customize behavior, create a `.ralph` directory and place your configuration files there. Files in the `.ralph` directory will override the built-in defaults.
+The `ralph` executable includes a standard set of prompts and configuration files built-in. To customize behavior, create a `.ralph` directory and place your configuration files there. Files in the `.ralph` directory will override the built-in defaults.
+
+### Required Files
+
+- `.ralph/PRD.md` - Product Requirements Document with tasks (checkboxes for incomplete tasks)
+
+### Optional Configuration Files
+
+You can export and customize the built-in prompts:
+
+```bash
+./ralph --export-prompts
+```
+
+This creates the following files in `.ralph/`:
+- `system_prompt.txt` - Overall behavior and decision-making rules
+- `step1_prompt.txt` - Planning step instructions
+- `step2_prompt.txt` - Implementation step instructions
+- `step3_prompt.txt` - Cleanup step instructions
+- `step4_prompt.txt` - Self-improvement analysis instructions
+- `step5_prompt.txt` - Commit step instructions
 
 If a `.ralph` directory doesn't exist or specific files are missing, the executable will use its built-in defaults.
 
 ## Usage
 
-```bash
-# Run with default prompts (no configuration needed)
-./ralph
+### Basic Usage
 
-# Run with custom configuration
-# Create a .ralph directory and add your configuration files
-mkdir .ralph
-# Add your custom files to .ralph/
-./ralph
+```bash
+# Run Ralph with a specified number of iterations
+./ralph <iterations>
+
+# Example: Run for 10 iterations
+./ralph 10
 ```
+
+### Export Prompts for Customization
+
+```bash
+# Export all built-in prompts to .ralph directory
+./ralph --export-prompts
+```
+
+After exporting, you can edit the prompt files in `.ralph/` to customize Ralph's behavior.
+
+### Getting Help
+
+```bash
+./ralph --help
+# or
+./ralph -h
+```
+
+### How It Works
+
+1. **First Run**: Ralph reads `.ralph/PRD.md` and begins working through incomplete tasks
+2. **Each Iteration**: Executes all 5 steps (or 4 if not a 5th iteration)
+3. **State Management**: Saves progress after each step, allowing resume if interrupted
+4. **Completion**: Stops when PRD is complete or iteration limit is reached
+5. **Blockers**: If Ralph encounters a blocker, it stops and reports the issue
 
 The executable will first check for files in the `.ralph` directory. If found, they override the built-in defaults. If not found, the standard prompts are used.
 
@@ -38,20 +98,97 @@ The executable will first check for files in the `.ralph` directory. If found, t
 
 ```
 ralph-go/
-├── .ralph/          # Optional: Configuration directory for overrides
-├── README.md
-└── ...              # Source code
+├── .ralph/              # Optional: Configuration directory for overrides
+│   ├── PRD.md           # Required: Product Requirements Document
+│   ├── PROGRESS.md      # Optional: Progress tracking (auto-generated)
+│   ├── PLAN.md          # Optional: Current plan (auto-generated, removed after completion)
+│   ├── BACKLOG.md       # Optional: Critical issues backlog (auto-generated)
+│   └── *.txt            # Optional: Custom prompt files
+├── main.go              # Main entry point
+├── prompts.go           # Built-in prompts and prompt management
+├── steps.go             # Step execution logic
+├── claude.go            # Claude AI integration
+├── state.go             # State persistence and resume logic
+├── config.go            # Configuration constants
+└── README.md
 ```
 
-The `.ralph` directory is optional. If present, files in this directory override the built-in standard prompts and configuration.
+The `.ralph` directory is optional for configuration. If present, files in this directory override the built-in standard prompts and configuration.
 
 ## Development
+
+### Building from Source
 
 ```bash
 # Build the executable
 go build -o dist/ralph
 ```
 
+### Project Architecture
+
+- **main.go** - Entry point, orchestrates the Ralph loop and handles CLI arguments
+- **prompts.go** - Manages built-in prompts and custom prompt loading
+- **steps.go** - Implements each step of the Ralph workflow with retry logic
+- **claude.go** - Wraps the Claude CLI tool for AI interactions
+- **state.go** - Handles state persistence and resume functionality
+- **config.go** - Defines timeouts, retry limits, and required files
+
+### Key Design Decisions
+
+- **State Persistence**: Progress is saved after each step, allowing graceful recovery from interruptions
+- **Timeout Handling**: Each step has configurable timeouts with automatic retries
+- **Prompt Override System**: Built-in prompts can be overridden via `.ralph` directory for customization
+- **Autonomous Operation**: System prompt enforces autonomous decision-making without asking for confirmation
+
+## Contributing
+
+Contributions are welcome! Here's how you can help:
+
+### Reporting Issues
+
+- Check existing issues before creating a new one
+- Provide clear descriptions, steps to reproduce, and expected vs actual behavior
+- Include relevant code snippets or error messages
+
+### Submitting Changes
+
+1. **Fork the repository** and create a feature branch
+2. **Make your changes** following the existing code style
+3. **Test your changes** by building and running the executable
+4. **Update documentation** if you're adding features or changing behavior
+5. **Submit a pull request** with a clear description of your changes
+
+### Code Style Guidelines
+
+- Follow Go standard formatting (`gofmt`)
+- Keep functions focused and under 200-300 lines
+- Add comments for exported functions and complex logic
+- Maintain consistency with existing patterns
+- Write clear, descriptive variable and function names
+
+### Areas for Contribution
+
+- **Bug fixes** - Fix issues reported in the issue tracker
+- **Feature enhancements** - Add new capabilities or improve existing ones
+- **Documentation** - Improve README, add examples, or clarify usage
+- **Testing** - Add tests for existing functionality
+- **Performance** - Optimize code execution or reduce resource usage
+- **Error handling** - Improve error messages and recovery mechanisms
+
+### Development Workflow
+
+1. Create a branch for your changes
+2. Make your changes and test them
+3. Ensure the code builds successfully: `go build -o dist/ralph`
+4. Update relevant documentation
+5. Submit a pull request with a clear description
+
+Thank you for contributing!
+
+## Special Thanks
+
+Special thanks to [Geoffrey Huntley](https://x.com/GeoffreyHuntley) and [Ryan Carson](https://x.com/ryancarson) for the inspiration for this project.
+
 ## License
 
-[Add license information here]
+MIT License - see [LICENSE](LICENSE) file for details.
