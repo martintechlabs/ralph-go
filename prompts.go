@@ -58,12 +58,18 @@ const BuiltInStep2Prompt = `@.ralph/PRD.md @.ralph/PLAN.md @.ralph/PROGRESS.md @
 3. Run tests and type checks. Fix ALL errors and warnings. \
 4. Ensure test coverage is at least 80%. \
 5. Run a code review and fix ALL issues. \
+6. Verify that ALL Verification Criteria from .ralph/PRD.md for this task are met. If any criteria are not met, continue implementation until all are satisfied. \
 If .ralph/PLAN.md is ambiguous, interpret it reasonably and proceed - do not ask for clarification. \
 Complete the implementation fully - do not ask if you should continue or what to do next. \
 If you are blocked, output <promise>BLOCKED</promise> and explain the blocker.`
 
 const BuiltInStep3Prompt = `@.ralph/PRD.md @.ralph/PLAN.md @.ralph/PROGRESS.md \
-1. Update .ralph/PRD.md with the completed task. \
+1. Update .ralph/PRD.md with the completed task: \
+   a. CRITICAL: Verify that ALL Verification Criteria for this task are met. A task CANNOT be marked complete unless ALL verification criteria checkboxes can be checked off. \
+   b. If any Verification Criteria are not met, output <promise>BLOCKED</promise> and explain which criteria are missing - do NOT mark the task as complete. \
+   c. Only if ALL Verification Criteria are satisfied: \
+      - Mark the main task checkbox as complete [x] \
+      - Check off all Verification Criteria checkboxes for that task [x] \
 2. Remove .ralph/PLAN.md. \
 3. Update .ralph/PROGRESS.md with any learnings. \
 4. Update @CLAUDE.md with any new features or changes. Ensure to use CLAUDE.md best practices and conventions: high‑level project context, clear guardrails, key commands, and links to deeper docs, while avoiding long prose and unnecessary detail. \
@@ -112,6 +118,65 @@ Use format: 'feat: [brief description]' or 'fix: [brief description]' based on t
 Review git status, stage all relevant changes, and commit - do not ask for approval. \
 If there are no changes to commit, output 'No changes to commit' and proceed to next iteration.`
 
+const BuiltInSamplePRD = `# Product Requirements Document
+
+## Overview
+
+This PRD outlines the requirements for [PROJECT NAME]. The goal is to [CLEAR DESCRIPTION OF WHAT THIS PRD IS TRYING TO ACCOMPLISH].
+
+## Objectives
+
+- [Primary objective 1]
+- [Primary objective 2]
+- [Primary objective 3]
+
+## Tasks
+
+- [ ] **Task 1: [Task Name]**
+
+  **Description:** [Clear description of what needs to be done]
+
+  **Verification Criteria:**
+  - [ ] [Specific, measurable criterion 1]
+  - [ ] [Specific, measurable criterion 2]
+  - [ ] [Specific, measurable criterion 3]
+
+  **Complexity:** [easy/medium/hard]
+
+---
+
+- [ ] **Task 2: [Task Name]**
+
+  **Description:** [Clear description of what needs to be done]
+
+  **Verification Criteria:**
+  - [ ] [Specific, measurable criterion 1]
+  - [ ] [Specific, measurable criterion 2]
+  - [ ] [Specific, measurable criterion 3]
+
+  **Complexity:** [easy/medium/hard]
+
+---
+
+- [ ] **Task 3: [Task Name]**
+
+  **Description:** [Clear description of what needs to be done]
+
+  **Verification Criteria:**
+  - [ ] [Specific, measurable criterion 1]
+  - [ ] [Specific, measurable criterion 2]
+  - [ ] [Specific, measurable criterion 3]
+
+  **Complexity:** [easy/medium/hard]
+
+---
+
+## Notes
+
+- Add any additional context, constraints, or considerations here
+- Update this section as needed during development
+`
+
 // Prompt file names in .ralph directory
 const (
 	SystemPromptFile = ".ralph/system_prompt.txt"
@@ -120,6 +185,7 @@ const (
 	Step3PromptFile  = ".ralph/step3_prompt.txt"
 	Step4PromptFile  = ".ralph/step4_prompt.txt"
 	Step5PromptFile  = ".ralph/step5_prompt.txt"
+	SamplePRDFile    = ".ralph/PRD.md"
 )
 
 // getSystemPrompt returns the system prompt, checking .ralph directory first, then falling back to built-in
@@ -192,12 +258,25 @@ func exportPrompts() error {
 		}
 	}
 
+	// Export sample PRD (only if it doesn't exist)
+	prdStatus := "(skipped - file already exists)"
+	if _, err := os.Stat(SamplePRDFile); os.IsNotExist(err) {
+		if err := writeFileContent(SamplePRDFile, BuiltInSamplePRD); err != nil {
+			return fmt.Errorf("failed to write sample PRD: %v", err)
+		}
+		prdStatus = "(sample)"
+	}
+
 	fmt.Println("✅ Exported all prompts to .ralph directory:")
 	fmt.Printf("   - %s\n", SystemPromptFile)
 	for filename := range stepPrompts {
 		fmt.Printf("   - %s\n", filename)
 	}
+	fmt.Printf("   - %s %s\n", SamplePRDFile, prdStatus)
 	fmt.Println("\nYou can now customize these prompts by editing the files in .ralph/")
+	if prdStatus == "(sample)" {
+		fmt.Println("Edit .ralph/PRD.md to define your project requirements with tasks and verification criteria.")
+	}
 
 	return nil
 }
