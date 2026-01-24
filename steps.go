@@ -24,9 +24,9 @@ func executeStepWithRetry(stepNum int, stepName string, timeout int, systemPromp
 
 		result, err := runClaude(timeout, systemPrompt, prompt)
 
-		// Print output (like tee in bash script)
-		if result != nil && result.Output != "" {
-			fmt.Print(result.Output)
+		// Output is already streamed and printed in runClaude, just add a newline at the end
+		if result != nil {
+			fmt.Print("\n")
 		}
 
 		if err != nil {

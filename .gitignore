@@ -35,3 +35,6 @@ coverage.out
 # Temporary files
 *.tmp
 *.log
+
+# Ralph files
+.ralph/

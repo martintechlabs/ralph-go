@@ -291,3 +291,34 @@ func writeFileContent(filename string, content string) error {
 
 	return os.WriteFile(filename, []byte(content), 0644)
 }
+
+// initProject creates the minimum files needed to get started
+func initProject() error {
+	// Ensure .ralph directory exists
+	if err := os.MkdirAll(".ralph", 0755); err != nil {
+		return fmt.Errorf("failed to create .ralph directory: %v", err)
+	}
+
+	// Create PRD.md (required file)
+	prdStatus := "(created)"
+	if _, err := os.Stat(SamplePRDFile); err == nil {
+		prdStatus = "(already exists - skipped)"
+	} else {
+		if err := writeFileContent(SamplePRDFile, BuiltInSamplePRD); err != nil {
+			return fmt.Errorf("failed to write PRD: %v", err)
+		}
+	}
+
+	fmt.Println("✅ Initialized Ralph project:")
+	fmt.Printf("   - %s %s\n", SamplePRDFile, prdStatus)
+	fmt.Println("\nNext steps:")
+	if prdStatus == "(created)" {
+		fmt.Println("1. Edit .ralph/PRD.md to define your project requirements with tasks and verification criteria.")
+	} else {
+		fmt.Println("1. Review .ralph/PRD.md to ensure it contains your project requirements.")
+	}
+	fmt.Println("2. Run: ./ralph <iterations> to start the development loop")
+	fmt.Println("3. Optional: Run: ./ralph --export-prompts to customize prompts")
+
+	return nil
+}

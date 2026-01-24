@@ -1,6 +1,9 @@
 #!/bin/bash
 # afk-ralph.sh - fully autonomous loop with Orb
 
+
+# THIS WAS THE ORIGINAL VERSION OF RALPH. IT IS NOW DEPRECATED.
+
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
