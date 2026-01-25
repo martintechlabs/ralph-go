@@ -4,13 +4,14 @@ An autonomous development loop executor (Ralph Loop) that uses Claude AI to auto
 
 ## What is Ralph?
 
-Ralph is an automated development assistant that runs a structured workflow to complete tasks from a PRD. It operates autonomously, making decisions and implementing code without requiring constant human intervention. The tool executes a 5-step loop:
+Ralph is an automated development assistant that runs a structured workflow to complete tasks from a PRD. It operates autonomously, making decisions and implementing code without requiring constant human intervention. The tool executes a 6-step loop:
 
 1. **Planning** - Reviews the PRD, selects tasks, and creates detailed implementation plans
 2. **Implementation** - Writes code, runs tests, fixes errors, and ensures test coverage
 3. **Cleanup** - Updates documentation, removes temporary files, and maintains project state
-4. **Self-Improvement** (every 5th iteration) - Analyzes the codebase for critical issues and technical debt
-5. **Commit** - Commits changes with appropriate commit messages
+4. **CLAUDE.md Refactoring** - Refactors CLAUDE.md to follow progressive disclosure principles
+5. **Self-Improvement** (every 5th iteration) - Analyzes the codebase for critical issues and technical debt
+6. **Commit** - Commits changes with appropriate commit messages
 
 Ralph can resume from checkpoints if interrupted, handles timeouts with retries, and automatically detects when work is complete or blocked.
 
@@ -28,6 +29,8 @@ Ralph can resume from checkpoints if interrupted, handles timeouts with retries,
 - Go 1.21 or later (for building from source)
 - The `claude` CLI tool installed and configured (Ralph uses this to interact with Claude AI)
 - A `.ralph/PRD.md` file in your project directory (Product Requirements Document with tasks to complete)
+
+You can create the PRD manually or use `./ralph --init [description]` to generate one automatically.
 
 ## Configuration
 
@@ -50,8 +53,9 @@ This creates the following files in `.ralph/`:
 - `step1_prompt.txt` - Planning step instructions
 - `step2_prompt.txt` - Implementation step instructions
 - `step3_prompt.txt` - Cleanup step instructions
-- `step4_prompt.txt` - Self-improvement analysis instructions
-- `step5_prompt.txt` - Commit step instructions
+- `step4_prompt.txt` - CLAUDE.md refactoring instructions
+- `step5_prompt.txt` - Self-improvement analysis instructions
+- `step6_prompt.txt` - Commit step instructions
 
 If a `.ralph` directory doesn't exist or specific files are missing, the executable will use its built-in defaults.
 
@@ -66,6 +70,18 @@ If a `.ralph` directory doesn't exist or specific files are missing, the executa
 # Example: Run for 10 iterations
 ./ralph 10
 ```
+
+### Initialize a New Project
+
+```bash
+# Create a basic PRD template
+./ralph --init
+
+# Create a PRD interactively with Claude based on a description
+./ralph --init "Build a todo app with user authentication"
+```
+
+The `--init` command creates the minimum files needed to get started (`.ralph/PRD.md`). If you provide a description, Ralph will use Claude to generate a comprehensive PRD based on your project description.
 
 ### Export Prompts for Customization
 
@@ -84,10 +100,18 @@ After exporting, you can edit the prompt files in `.ralph/` to customize Ralph's
 ./ralph -h
 ```
 
+### Version Information
+
+```bash
+./ralph --version
+# or
+./ralph -v
+```
+
 ### How It Works
 
 1. **First Run**: Ralph reads `.ralph/PRD.md` and begins working through incomplete tasks
-2. **Each Iteration**: Executes all 5 steps (or 4 if not a 5th iteration)
+2. **Each Iteration**: Executes all 6 steps (or 5 if not a 5th iteration, since Step 5 runs every 5th iteration)
 3. **State Management**: Saves progress after each step, allowing resume if interrupted
 4. **Completion**: Stops when PRD is complete or iteration limit is reached
 5. **Blockers**: If Ralph encounters a blocker, it stops and reports the issue
@@ -110,6 +134,7 @@ ralph-go/
 ├── claude.go            # Claude AI integration
 ├── state.go             # State persistence and resume logic
 ├── config.go            # Configuration constants
+├── prd.go               # PRD creation and initialization
 └── README.md
 ```
 
@@ -132,6 +157,7 @@ go build -o dist/ralph
 - **claude.go** - Wraps the Claude CLI tool for AI interactions
 - **state.go** - Handles state persistence and resume functionality
 - **config.go** - Defines timeouts, retry limits, and required files
+- **prd.go** - Handles PRD creation and initialization via `--init` flag
 
 ### Key Design Decisions
 
