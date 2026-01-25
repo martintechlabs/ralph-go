@@ -129,6 +129,9 @@ func runClaude(timeoutSeconds int, systemPrompt string, prompt string) (*ClaudeR
 		}
 	}
 
+	// Add a newline after streaming completes to ensure proper formatting
+	fmt.Print("\n")
+
 	// Check for scanner errors
 	if err := scanner.Err(); err != nil {
 		// Continue anyway, we'll capture what we got

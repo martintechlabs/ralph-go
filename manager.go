@@ -1598,8 +1598,9 @@ func runManagerMode(configFile string, iterations int) error {
 			}
 
 			if len(tickets) == 0 {
-				fmt.Println("ℹ️  No Todo tickets found. Exiting.")
-				return nil
+				fmt.Println("ℹ️  No Todo tickets found. Sleeping for 1 minute and checking again...")
+				time.Sleep(1 * time.Minute)
+				continue
 			}
 
 			// Select highest priority ticket (first one, already sorted)
