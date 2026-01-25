@@ -13,6 +13,8 @@ func printHelp() {
 	fmt.Printf("  %s <iterations>\n", os.Args[0])
 	fmt.Printf("  %s --export-prompts\n", os.Args[0])
 	fmt.Printf("  %s --init [description]\n", os.Args[0])
+	fmt.Printf("  %s --manager <config-file> <iterations>\n", os.Args[0])
+	fmt.Printf("  %s --tickets <config-file>\n", os.Args[0])
 	fmt.Printf("  %s --help\n", os.Args[0])
 	fmt.Printf("  %s -h\n", os.Args[0])
 	fmt.Printf("  %s --version\n", os.Args[0])
@@ -23,6 +25,10 @@ func printHelp() {
 	fmt.Println("  --export-prompts  Export all built-in prompts to .ralph directory for customization")
 	fmt.Println("  --init            Create minimum files needed to get started (.ralph/PRD.md)")
 	fmt.Println("                    If description is provided, interactively creates a PRD using Claude")
+	fmt.Println("  --manager         Linear manager mode: automatically process tickets from Linear")
+	fmt.Println("                    Requires config-file (TOML) and iterations parameter")
+	fmt.Println("  --tickets         List all pending tickets from Linear (for testing connectivity)")
+	fmt.Println("                    Requires config-file (TOML)")
 	fmt.Println("  --version, -v     Display version information")
 	fmt.Println()
 	fmt.Println("Description:")
@@ -49,7 +55,7 @@ func printHelp() {
 
 func main() {
 	if len(os.Args) < 2 {
-		fmt.Fprintf(os.Stderr, "Usage: %s <iterations> or %s --export-prompts or %s --init [description]\n", os.Args[0], os.Args[0], os.Args[0])
+		fmt.Fprintf(os.Stderr, "Usage: %s <iterations> or %s --export-prompts or %s --init [description] or %s --manager <config-file> <iterations> or %s --tickets <config-file>\n", os.Args[0], os.Args[0], os.Args[0], os.Args[0], os.Args[0])
 		fmt.Fprintf(os.Stderr, "Use --help or -h for more information, or --version/-v for version\n")
 		os.Exit(1)
 	}
@@ -85,6 +91,45 @@ func main() {
 		}
 		if err := initProject(description); err != nil {
 			fmt.Fprintf(os.Stderr, "❌ Error initializing project: %v\n", err)
+			os.Exit(1)
+		}
+		os.Exit(0)
+	}
+
+	// Check for manager flag
+	if os.Args[1] == "--manager" {
+		if len(os.Args) < 4 {
+			fmt.Fprintf(os.Stderr, "Usage: %s --manager <config-file> <iterations>\n", os.Args[0])
+			fmt.Fprintf(os.Stderr, "  config-file: Path to Linear config TOML file\n")
+			fmt.Fprintf(os.Stderr, "  iterations:  Number of iterations to run per ticket (must be >= 1)\n")
+			os.Exit(1)
+		}
+
+		configFile := os.Args[2]
+		var iterations int
+		if _, err := fmt.Sscanf(os.Args[3], "%d", &iterations); err != nil || iterations < 1 {
+			fmt.Fprintf(os.Stderr, "Error: invalid iterations value: %s (must be >= 1)\n", os.Args[3])
+			os.Exit(1)
+		}
+
+		if err := runManagerMode(configFile, iterations); err != nil {
+			fmt.Fprintf(os.Stderr, "❌ Manager mode error: %v\n", err)
+			os.Exit(1)
+		}
+		os.Exit(0)
+	}
+
+	// Check for tickets flag (test Linear connectivity)
+	if os.Args[1] == "--tickets" {
+		if len(os.Args) < 3 {
+			fmt.Fprintf(os.Stderr, "Usage: %s --tickets <config-file>\n", os.Args[0])
+			fmt.Fprintf(os.Stderr, "  config-file: Path to Linear config TOML file\n")
+			os.Exit(1)
+		}
+
+		configFile := os.Args[2]
+		if err := listPendingTickets(configFile); err != nil {
+			fmt.Fprintf(os.Stderr, "❌ Error listing tickets: %v\n", err)
 			os.Exit(1)
 		}
 		os.Exit(0)

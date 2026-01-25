@@ -91,6 +91,10 @@ func clearState() error {
 }
 
 func detectResume(maxIterations int) (*State, int, error) {
+	return detectResumeWithPrompt(maxIterations, true)
+}
+
+func detectResumeWithPrompt(maxIterations int, interactive bool) (*State, int, error) {
 	state, err := loadState()
 	if err != nil {
 		return nil, 0, err
@@ -137,22 +141,26 @@ func detectResume(maxIterations int) (*State, int, error) {
 		stepName = "Step 1 (Planning)"
 	}
 
-	// Prompt user
-	fmt.Println("🔄 Resume detected:")
-	fmt.Printf("   Iteration: %d/%d\n", state.Iteration, state.MaxIterations)
-	fmt.Printf("   Resume from: %s\n", stepName)
-	fmt.Println()
-	fmt.Print("Continue from here? (Y/n): ")
+	// Prompt user if interactive mode
+	if interactive {
+		fmt.Println("🔄 Resume detected:")
+		fmt.Printf("   Iteration: %d/%d\n", state.Iteration, state.MaxIterations)
+		fmt.Printf("   Resume from: %s\n", stepName)
+		fmt.Println()
+		fmt.Print("Continue from here? (Y/n): ")
 
-	var response string
-	fmt.Scanln(&response)
-	response = strings.TrimSpace(response)
+		var response string
+		fmt.Scanln(&response)
+		response = strings.TrimSpace(response)
 
-	// Default to "Y" if empty, only start fresh if explicitly "n" or "N"
-	if response == "n" || response == "N" {
-		fmt.Println("Starting fresh...")
-		clearState()
-		return nil, 0, nil
+		// Default to "Y" if empty, only start fresh if explicitly "n" or "N"
+		if response == "n" || response == "N" {
+			fmt.Println("Starting fresh...")
+			clearState()
+			return nil, 0, nil
+		}
+	} else {
+		fmt.Printf("🔄 Auto-resuming from iteration %d/%d, step %s\n", state.Iteration, state.MaxIterations, stepName)
 	}
 
 	return state, resumeStep, nil

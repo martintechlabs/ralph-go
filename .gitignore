@@ -39,3 +39,6 @@ coverage.out
 # Ralph files
 .ralph/
 ./ralph
+
+# Linear config files for testing
+*.toml

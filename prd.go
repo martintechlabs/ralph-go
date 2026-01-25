@@ -8,6 +8,16 @@ import (
 
 const PRDCreationSystemPrompt = `You are a supportive product manager creating a comprehensive PRD for the Ralph Wiggum autonomous development loop.
 
+AUTONOMOUS MODE: You are operating in fully autonomous mode.
+
+CRITICAL RULES:
+- DO NOT ask follow-up questions
+- DO NOT request clarification
+- DO NOT ask for confirmation before proceeding
+- Make reasonable assumptions about missing details based on best practices
+- If information is missing, infer from context and create a reasonable PRD
+- Complete the PRD fully without asking if you should continue
+
 Your goal is to create a complete Product Requirements Document based on the user's description. You should:
 1. Analyze the project description provided
 2. Make reasonable assumptions about missing details based on best practices
@@ -17,7 +27,9 @@ Be thorough and create a production-ready PRD that covers all aspects of the pro
 
 const PRDCreationUserPromptTemplate = `The user wants to build: %s
 
-Create a comprehensive Product Requirements Document (PRD) based on this description. Analyze the project and make reasonable assumptions about:
+CRITICAL: Create a comprehensive Product Requirements Document (PRD) based on this description. DO NOT ask questions - make reasonable assumptions and proceed immediately.
+
+Analyze the project and make reasonable assumptions about:
 
 1. **Project Overview** - What problem is being solved?
 2. **Target Audience** - Who is the primary user?
@@ -162,7 +174,17 @@ func prdDiscoveryFlow(description string) (string, error) {
 	// Extract PRD content from the output
 	prdContent := extractPRDFromOutput(result.Output)
 	if prdContent == "" {
-		return "", fmt.Errorf("failed to extract PRD from Claude output")
+		// Check if Claude asked questions instead of creating a PRD
+		outputLower := strings.ToLower(result.Output)
+		if strings.Contains(outputLower, "could you please") ||
+			strings.Contains(outputLower, "please provide") ||
+			strings.Contains(outputLower, "what kind of") ||
+			strings.Contains(outputLower, "need more") ||
+			strings.Contains(outputLower, "more details") ||
+			strings.Contains(outputLower, "more information") {
+			return "", fmt.Errorf("PRD creation failed: Claude asked questions instead of creating a PRD. Please ensure the description is more detailed, or the PRD creation prompt enforces autonomous mode.")
+		}
+		return "", fmt.Errorf("failed to extract PRD from Claude output. Output length: %d characters", len(result.Output))
 	}
 
 	return prdContent, nil

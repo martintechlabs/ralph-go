@@ -23,12 +23,20 @@ Ralph can resume from checkpoints if interrupted, handles timeouts with retries,
 - **Built-in defaults** - Works out of the box with sensible defaults
 - **Single executable** - Easy deployment, no complex setup required
 - **Error handling** - Automatic retries on timeouts, graceful handling of blockers
+- **Linear Integration** - Automatically process tickets from Linear with manager mode
+- **Progress tracking** - Real-time updates to Linear tickets as work progresses
+- **Automatic PR creation** - Creates pull requests automatically when tickets are completed (manager mode)
 
 ## Prerequisites
 
 - Go 1.21 or later (for building from source)
 - The `claude` CLI tool installed and configured (Ralph uses this to interact with Claude AI)
 - A `.ralph/PRD.md` file in your project directory (Product Requirements Document with tasks to complete)
+  - Not required for manager mode (PRD is created from Linear ticket)
+- For Linear manager mode:
+  - Linear API token and project UUID
+  - GitHub CLI (`gh`) installed and authenticated (for automatic PR creation)
+  - Git remote configured (must be a GitHub repository)
 
 You can create the PRD manually or use `./ralph --init [description]` to generate one automatically.
 
@@ -108,6 +116,66 @@ After exporting, you can edit the prompt files in `.ralph/` to customize Ralph's
 ./ralph -v
 ```
 
+### Linear Manager Mode
+
+Ralph can automatically process tickets from Linear, running the development loop for each ticket:
+
+```bash
+# List all tickets in a project (for testing connectivity)
+./ralph --tickets <config-file>
+
+# Run manager mode to automatically process tickets
+./ralph --manager <config-file> <iterations>
+```
+
+**Manager Mode Features:**
+- Automatically fetches tickets in "Todo" state from a Linear project
+- Creates a git branch for each ticket
+- Runs ralph loop with specified iterations
+- Updates ticket status as work progresses (Todo → In Progress → Done)
+- Posts progress comments to tickets after each iteration
+- Automatically creates pull requests when tickets are completed
+- Escalates to a specified user on errors
+- Supports resumability - can resume from last processed ticket
+
+**Linear Configuration File:**
+
+Create a TOML config file (e.g., `linear.toml`):
+
+```toml
+# Linear API token (Bearer token for authentication)
+# Get your API key from: https://linear.app/settings/api
+token = "your-linear-api-token"
+
+# Project ID to filter tickets (must be project UUID, not slug)
+# Use --tickets command to list projects and get the UUID
+project = "project-uuid-here"
+
+# Linear username of user to tag on errors
+escalate_user = "username"
+
+# Base branch to create feature branches from (optional)
+# If not specified, defaults to "main" or "master" (tries main first)
+# Examples: "main", "master", "develop", "trunk"
+base_branch = "main"
+```
+
+**Manager Mode Workflow:**
+1. Validates git remote and GitHub CLI setup
+2. Fetches highest priority ticket in "Todo" state
+3. Creates git branch: `linear/{issue-id}-{slugified-title}`
+4. Adds comment to ticket with branch name
+5. Updates ticket to "In Progress"
+6. Creates PRD from ticket title and description
+7. Runs ralph loop for specified iterations
+8. Posts progress updates after each iteration
+9. On success:
+   - Pushes branch to remote
+   - Creates pull request with ticket information
+   - Updates ticket to "Done" with PR link
+   - Continues to next ticket
+9. On error: Adds error comment, tags escalate_user, moves ticket back to "Todo", and exits
+
 ### How It Works
 
 1. **First Run**: Ralph reads `.ralph/PRD.md` and begins working through incomplete tasks
@@ -123,16 +191,19 @@ The executable will first check for files in the `.ralph` directory. If found, t
 ```
 ralph-go/
 ├── .ralph/              # Optional: Configuration directory for overrides
-│   ├── PRD.md           # Required: Product Requirements Document
+│   ├── PRD.md           # Required: Product Requirements Document (not needed for manager mode)
 │   ├── PROGRESS.md      # Optional: Progress tracking (auto-generated)
 │   ├── PLAN.md          # Optional: Current plan (auto-generated, removed after completion)
 │   ├── BACKLOG.md       # Optional: Critical issues backlog (auto-generated)
+│   ├── ralph-state.txt  # Auto-generated: State for regular ralph mode
+│   ├── manager-state.txt # Auto-generated: State for manager mode resume
 │   └── *.txt            # Optional: Custom prompt files
 ├── main.go              # Main entry point
 ├── prompts.go           # Built-in prompts and prompt management
 ├── steps.go             # Step execution logic
 ├── claude.go            # Claude AI integration
 ├── state.go             # State persistence and resume logic
+├── manager.go           # Linear manager mode implementation
 ├── config.go            # Configuration constants
 ├── prd.go               # PRD creation and initialization
 └── README.md
@@ -156,6 +227,7 @@ go build -o dist/ralph
 - **steps.go** - Implements each step of the Ralph workflow with retry logic
 - **claude.go** - Wraps the Claude CLI tool for AI interactions
 - **state.go** - Handles state persistence and resume functionality
+- **manager.go** - Linear API integration and manager mode implementation
 - **config.go** - Defines timeouts, retry limits, and required files
 - **prd.go** - Handles PRD creation and initialization via `--init` flag
 

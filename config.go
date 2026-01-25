@@ -1,7 +1,7 @@
 package main
 
 // Version is the application version
-const Version = "0.1.2"
+const Version = "0.3.0"
 
 // Timeout configuration (in seconds)
 const (
@@ -14,8 +14,10 @@ const (
 )
 
 const (
-	MaxRetries = 3
-	StateFile  = ".ralph/ralph-state.txt"
+	MaxRetries        = 3
+	StateFile         = ".ralph/ralph-state.txt"
+	ManagerStateFile  = ".ralph/manager-state.txt"
+	LinearAPIEndpoint = "https://api.linear.app/graphql"
 )
 
 // Required files
