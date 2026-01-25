@@ -94,7 +94,16 @@ Generate tasks based on the features and requirements gathered. Tasks should be:
 - **Ordered**: Tasks should be in logical dependency order
 - **Complexity**: Assess each task as easy, medium, or hard
 
-Once you have all the information, generate the complete PRD in the format above.`
+Once you have all the information, generate the complete PRD in the format above.
+
+CRITICAL OUTPUT REQUIREMENTS:
+- Output ONLY the PRD markdown content - nothing else
+- Do NOT include any file path messages like "The PRD is now saved at..."
+- Do NOT include any explanatory text before or after the PRD
+- Do NOT include any status messages or confirmations
+- Start your response directly with "# Product Requirements Document"
+- End your response with the closing of the PRD (after the Notes section)
+- The entire output should be the PRD markdown and nothing else`
 
 // createPRD orchestrates the PRD creation process
 func createPRD(description string) error {
@@ -160,10 +169,62 @@ func prdDiscoveryFlow(description string) (string, error) {
 
 // extractPRDFromOutput extracts the PRD markdown from Claude's output
 func extractPRDFromOutput(output string) string {
-	// Look for the PRD content in the output
-	// The PRD should be in a code block or directly in the markdown format
-
-	// Try to find markdown code block with ```markdown
+	// Remove any file path messages that Claude might have included
+	// Look for patterns like "The PRD is now saved at..." or "saved at..."
+	lines := strings.Split(output, "\n")
+	var filteredLines []string
+	inPRD := false
+	
+	for i, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		
+		// Skip lines that look like file path messages
+		if strings.Contains(strings.ToLower(trimmed), "saved at") ||
+			strings.Contains(strings.ToLower(trimmed), "the prd is now") ||
+			strings.Contains(strings.ToLower(trimmed), "prd saved") ||
+			(strings.HasPrefix(trimmed, "/") && strings.Contains(trimmed, "PRD.md")) {
+			continue
+		}
+		
+		// Start capturing when we find the PRD header
+		if strings.Contains(trimmed, "# Product Requirements Document") {
+			inPRD = true
+			filteredLines = append(filteredLines, line)
+			continue
+		}
+		
+		// If we're in the PRD, continue capturing
+		if inPRD {
+			// Stop if we hit JSON metadata or other non-PRD content
+			if strings.Contains(trimmed, `"session_id"`) ||
+				strings.Contains(trimmed, `"total_cost_usd"`) ||
+				strings.Contains(trimmed, `"usage"`) ||
+				strings.Contains(trimmed, `"modelUsage"`) ||
+				strings.Contains(trimmed, `"permission_denials"`) ||
+				strings.Contains(trimmed, `"uuid"`) {
+				break
+			}
+			
+			// Stop if we hit another obvious non-PRD message
+			if strings.Contains(strings.ToLower(trimmed), "ready for development") ||
+				strings.Contains(strings.ToLower(trimmed), "next steps") ||
+				(strings.HasPrefix(trimmed, "✅") && i > 10) {
+				break
+			}
+			
+			filteredLines = append(filteredLines, line)
+		}
+	}
+	
+	// If we found the PRD header and captured content, return it
+	if inPRD && len(filteredLines) > 0 {
+		result := strings.TrimSpace(strings.Join(filteredLines, "\n"))
+		if len(result) > 100 { // Ensure we got substantial content
+			return result
+		}
+	}
+	
+	// Fallback: Try to find markdown code block with ```markdown
 	markdownStart := strings.Index(output, "```markdown")
 	if markdownStart != -1 {
 		// Find the end of the code block
@@ -182,7 +243,7 @@ func extractPRDFromOutput(output string) string {
 	codeStart := strings.Index(output, "```")
 	if codeStart != -1 {
 		contentStart := codeStart + len("```")
-		// Skip any language identifier and whitespace
+		// Skip any whitespace
 		contentStart = skipWhitespace(output, contentStart)
 		// Skip potential language identifier (like "markdown", "text", etc.)
 		for contentStart < len(output) && output[contentStart] != '\n' {
@@ -202,7 +263,7 @@ func extractPRDFromOutput(output string) string {
 	prdHeader := "# Product Requirements Document"
 	headerIndex := strings.Index(output, prdHeader)
 	if headerIndex != -1 {
-		// Extract from header to end, but filter out JSON metadata
+		// Extract from header to end, but filter out JSON metadata and file path messages
 		remaining := output[headerIndex:]
 		
 		// First, try to find where JSON metadata starts (if it appears after the PRD)
@@ -224,33 +285,56 @@ func extractPRDFromOutput(output string) string {
 			}
 		}
 		
-		// If we found JSON metadata, extract only up to that point
-		if earliestJSON < len(remaining) {
-			// Look backwards from the JSON to find a good break point (like end of a line or section)
-			// Find the last newline before the JSON
-			lastNewline := strings.LastIndex(remaining[:earliestJSON], "\n")
+		// Also look for file path messages
+		filePathPatterns := []string{
+			"The PRD is now saved at",
+			"saved at",
+			"ready for development",
+		}
+		
+		earliestFilePath := len(remaining)
+		for _, pattern := range filePathPatterns {
+			if idx := strings.Index(remaining, pattern); idx != -1 && idx < earliestFilePath {
+				earliestFilePath = idx
+			}
+		}
+		
+		// Use the earliest stopping point
+		earliestStop := earliestJSON
+		if earliestFilePath < earliestStop {
+			earliestStop = earliestFilePath
+		}
+		
+		// If we found a stopping point, extract only up to that point
+		if earliestStop < len(remaining) {
+			// Look backwards from the stop point to find a good break point (like end of a line or section)
+			// Find the last newline before the stop point
+			lastNewline := strings.LastIndex(remaining[:earliestStop], "\n")
 			if lastNewline != -1 {
 				remaining = remaining[:lastNewline]
 			} else {
-				remaining = remaining[:earliestJSON]
+				remaining = remaining[:earliestStop]
 			}
 		}
 		
 		// Clean up the result
 		result := strings.TrimSpace(remaining)
 		
-		// Remove any trailing JSON-like content that might have slipped through
+		// Remove any trailing JSON-like or file path content that might have slipped through
 		lines := strings.Split(result, "\n")
 		var cleanLines []string
 		for _, line := range lines {
 			trimmed := strings.TrimSpace(line)
-			// Skip lines that look like JSON metadata
+			// Skip lines that look like JSON metadata or file paths
 			if strings.Contains(trimmed, `"session_id"`) ||
 				strings.Contains(trimmed, `"total_cost_usd"`) ||
 				strings.Contains(trimmed, `"usage"`) ||
 				strings.Contains(trimmed, `"modelUsage"`) ||
 				strings.Contains(trimmed, `"permission_denials"`) ||
-				strings.Contains(trimmed, `"uuid"`) {
+				strings.Contains(trimmed, `"uuid"`) ||
+				strings.Contains(strings.ToLower(trimmed), "saved at") ||
+				strings.Contains(strings.ToLower(trimmed), "the prd is now") ||
+				(strings.HasPrefix(trimmed, "/") && strings.Contains(trimmed, "PRD.md")) {
 				break
 			}
 			cleanLines = append(cleanLines, line)

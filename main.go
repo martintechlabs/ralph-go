@@ -15,12 +15,15 @@ func printHelp() {
 	fmt.Printf("  %s --init [description]\n", os.Args[0])
 	fmt.Printf("  %s --help\n", os.Args[0])
 	fmt.Printf("  %s -h\n", os.Args[0])
+	fmt.Printf("  %s --version\n", os.Args[0])
+	fmt.Printf("  %s -v\n", os.Args[0])
 	fmt.Println()
 	fmt.Println("Commands:")
 	fmt.Println("  iterations        Number of iterations to run (must be >= 1)")
 	fmt.Println("  --export-prompts  Export all built-in prompts to .ralph directory for customization")
 	fmt.Println("  --init            Create minimum files needed to get started (.ralph/PRD.md)")
 	fmt.Println("                    If description is provided, interactively creates a PRD using Claude")
+	fmt.Println("  --version, -v     Display version information")
 	fmt.Println()
 	fmt.Println("Description:")
 	fmt.Println("  Runs a Ralph loop that executes a series of development steps:")
@@ -46,13 +49,19 @@ func printHelp() {
 func main() {
 	if len(os.Args) < 2 {
 		fmt.Fprintf(os.Stderr, "Usage: %s <iterations> or %s --export-prompts or %s --init [description]\n", os.Args[0], os.Args[0], os.Args[0])
-		fmt.Fprintf(os.Stderr, "Use --help or -h for more information\n")
+		fmt.Fprintf(os.Stderr, "Use --help or -h for more information, or --version/-v for version\n")
 		os.Exit(1)
 	}
 
 	// Check for help flag
 	if os.Args[1] == "--help" || os.Args[1] == "-h" {
 		printHelp()
+		os.Exit(0)
+	}
+
+	// Check for version flag
+	if os.Args[1] == "--version" || os.Args[1] == "-v" {
+		fmt.Printf("Ralph version %s\n", Version)
 		os.Exit(0)
 	}
 

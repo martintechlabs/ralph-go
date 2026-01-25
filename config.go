@@ -1,5 +1,8 @@
 package main
 
+// Version is the application version
+const Version = "0.1.1"
+
 // Timeout configuration (in seconds)
 const (
 	TimeoutPlanning        = 1800 // 30 minutes for planning

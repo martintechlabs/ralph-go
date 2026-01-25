@@ -133,12 +133,14 @@ func detectResume(maxIterations int) (*State, int, error) {
 	fmt.Printf("   Iteration: %d/%d\n", state.Iteration, state.MaxIterations)
 	fmt.Printf("   Resume from: %s\n", stepName)
 	fmt.Println()
-	fmt.Print("Continue from here? (y/n): ")
+	fmt.Print("Continue from here? (Y/n): ")
 
 	var response string
 	fmt.Scanln(&response)
+	response = strings.TrimSpace(response)
 
-	if response != "y" && response != "Y" {
+	// Default to "Y" if empty, only start fresh if explicitly "n" or "N"
+	if response == "n" || response == "N" {
 		fmt.Println("Starting fresh...")
 		clearState()
 		return nil, 0, nil
