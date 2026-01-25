@@ -7,6 +7,7 @@ const (
 	TimeoutCleanup         = 900  // 15 minutes for cleanup
 	TimeoutSelfImprovement = 1800 // 30 minutes for self-improvement analysis
 	TimeoutCommit          = 300  // 5 minutes for commit
+	TimeoutPRDCreation     = 1800 // 30 minutes for PRD creation
 )
 
 const (

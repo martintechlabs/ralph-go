@@ -31,6 +31,11 @@ type streamMessage struct {
 }
 
 func runClaude(timeoutSeconds int, systemPrompt string, prompt string) (*ClaudeResult, error) {
+	// Check if claude command exists
+	if _, err := exec.LookPath("claude"); err != nil {
+		return nil, fmt.Errorf("claude command not found in PATH. Please ensure the Claude CLI is installed and available")
+	}
+
 	ctx, cancel := contextWithTimeout(timeoutSeconds)
 	defer cancel()
 
@@ -39,6 +44,7 @@ func runClaude(timeoutSeconds int, systemPrompt string, prompt string) (*ClaudeR
 		"--dangerously-skip-permissions",
 		"--no-session-persistence",
 		"--output-format", "stream-json",
+		"--verbose",
 		"-p", prompt)
 
 	// Get stdout pipe for streaming
@@ -59,7 +65,8 @@ func runClaude(timeoutSeconds int, systemPrompt string, prompt string) (*ClaudeR
 	}
 
 	// Read and process streaming output
-	var fullOutput strings.Builder
+	var fullOutput strings.Builder  // For debugging/error messages
+	var textOutput strings.Builder   // For actual text content (PRD extraction)
 	scanner := bufio.NewScanner(stdout)
 
 	// Process stdout line by line
@@ -80,6 +87,8 @@ func runClaude(timeoutSeconds int, systemPrompt string, prompt string) (*ClaudeR
 				if msg.Type == "assistant" {
 					for _, content := range msg.Message.Content {
 						if content.Type == "text" && content.Text != "" {
+							// Add to text output (keep original newlines for PRD extraction)
+							textOutput.WriteString(content.Text)
 							// Print streaming text (replace \n with \r\n for proper display)
 							// This matches: gsub("\n"; "\r\n")
 							text := strings.ReplaceAll(content.Text, "\n", "\r\n")
@@ -88,11 +97,12 @@ func runClaude(timeoutSeconds int, systemPrompt string, prompt string) (*ClaudeR
 					}
 				}
 
-				// Check for final result
+				// Check for final result - but don't add it to textOutput as it may contain JSON metadata
 				// This matches: select(.type == "result").result
 				if msg.Type == "result" && msg.Result != "" {
 					fullOutput.WriteString(msg.Result)
 					fullOutput.WriteString("\n")
+					// Don't add result to textOutput - it contains JSON metadata
 				}
 			}
 		} else {
@@ -110,16 +120,23 @@ func runClaude(timeoutSeconds int, systemPrompt string, prompt string) (*ClaudeR
 
 	// Read stderr
 	stderrOutput, _ := io.ReadAll(stderr)
-	if len(stderrOutput) > 0 {
+	stderrStr := strings.TrimSpace(string(stderrOutput))
+	if len(stderrStr) > 0 {
 		fullOutput.WriteString("STDERR: ")
-		fullOutput.Write(stderrOutput)
+		fullOutput.WriteString(stderrStr)
 		fullOutput.WriteString("\n")
 	}
 
 	// Wait for command to complete
 	err = cmd.Wait()
 
-	outputStr := fullOutput.String()
+	// Use textOutput for the main output (clean text without JSON metadata)
+	// Fall back to fullOutput if textOutput is empty (for error cases)
+	outputStr := textOutput.String()
+	if outputStr == "" {
+		outputStr = fullOutput.String()
+	}
+	
 	result := &ClaudeResult{
 		Output:  outputStr,
 		Success: err == nil,
@@ -131,8 +148,11 @@ func runClaude(timeoutSeconds int, systemPrompt string, prompt string) (*ClaudeR
 			result.Success = false
 			return result, fmt.Errorf("timeout after %d seconds", timeoutSeconds)
 		}
-		// For other errors, still return the result with output
-		return result, err
+		// For other errors, include stderr in the error message for better debugging
+		if stderrStr != "" {
+			return result, fmt.Errorf("claude command failed: %v\nstderr: %s", err, stderrStr)
+		}
+		return result, fmt.Errorf("claude command failed: %v", err)
 	}
 
 	// Check for special markers in the full output

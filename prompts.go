@@ -293,13 +293,19 @@ func writeFileContent(filename string, content string) error {
 }
 
 // initProject creates the minimum files needed to get started
-func initProject() error {
+// If description is provided, it will interactively create a PRD using Claude
+func initProject(description string) error {
 	// Ensure .ralph directory exists
 	if err := os.MkdirAll(".ralph", 0755); err != nil {
 		return fmt.Errorf("failed to create .ralph directory: %v", err)
 	}
 
-	// Create PRD.md (required file)
+	// If description is provided, use PRD creation flow
+	if description != "" {
+		return createPRD(description)
+	}
+
+	// Otherwise, use existing sample PRD behavior
 	prdStatus := "(created)"
 	if _, err := os.Stat(SamplePRDFile); err == nil {
 		prdStatus = "(already exists - skipped)"

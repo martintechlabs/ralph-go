@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"strings"
 )
 
 func printHelp() {
@@ -11,7 +12,7 @@ func printHelp() {
 	fmt.Println("Usage:")
 	fmt.Printf("  %s <iterations>\n", os.Args[0])
 	fmt.Printf("  %s --export-prompts\n", os.Args[0])
-	fmt.Printf("  %s --init\n", os.Args[0])
+	fmt.Printf("  %s --init [description]\n", os.Args[0])
 	fmt.Printf("  %s --help\n", os.Args[0])
 	fmt.Printf("  %s -h\n", os.Args[0])
 	fmt.Println()
@@ -19,6 +20,7 @@ func printHelp() {
 	fmt.Println("  iterations        Number of iterations to run (must be >= 1)")
 	fmt.Println("  --export-prompts  Export all built-in prompts to .ralph directory for customization")
 	fmt.Println("  --init            Create minimum files needed to get started (.ralph/PRD.md)")
+	fmt.Println("                    If description is provided, interactively creates a PRD using Claude")
 	fmt.Println()
 	fmt.Println("Description:")
 	fmt.Println("  Runs a Ralph loop that executes a series of development steps:")
@@ -43,7 +45,7 @@ func printHelp() {
 
 func main() {
 	if len(os.Args) < 2 {
-		fmt.Fprintf(os.Stderr, "Usage: %s <iterations> or %s --export-prompts or %s --init\n", os.Args[0], os.Args[0], os.Args[0])
+		fmt.Fprintf(os.Stderr, "Usage: %s <iterations> or %s --export-prompts or %s --init [description]\n", os.Args[0], os.Args[0], os.Args[0])
 		fmt.Fprintf(os.Stderr, "Use --help or -h for more information\n")
 		os.Exit(1)
 	}
@@ -65,7 +67,13 @@ func main() {
 
 	// Check for init flag
 	if os.Args[1] == "--init" {
-		if err := initProject(); err != nil {
+		// Check if description parameter is provided
+		description := ""
+		if len(os.Args) > 2 {
+			// Join all remaining args as the description (handles multi-word descriptions)
+			description = strings.Join(os.Args[2:], " ")
+		}
+		if err := initProject(description); err != nil {
 			fmt.Fprintf(os.Stderr, "❌ Error initializing project: %v\n", err)
 			os.Exit(1)
 		}
