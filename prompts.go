@@ -102,7 +102,7 @@ Follow these steps:
    - Overly obvious (like "write clean code")`
 
 const BuiltInStep5Prompt = `@.ralph/PRD.md @.ralph/PROGRESS.md \
-Analyze the codebase for improvements, but ONLY add CRITICAL and HIGH priority issues to .ralph/BACKLOG.md. \
+Analyze the codebase for improvements, but ONLY add CRITICAL and HIGH priority issues as new tasks to .ralph/PRD.md. \
 1. Review the entire codebase for: \
    - Code smells (duplication, complexity, poor naming, magic numbers, etc.) \
    - Architecture issues (tight coupling, missing abstractions, scalability concerns) \
@@ -120,22 +120,26 @@ Analyze the codebase for improvements, but ONLY add CRITICAL and HIGH priority i
    - Technical debt that doesn't block features or cause bugs \
    - Performance optimizations for code paths that aren't bottlenecks \
    - Low/Medium priority issues (unless they're security-related) \
-4. DEDUPLICATION: Before adding any issue to .ralph/BACKLOG.md: \
-   - Read .ralph/BACKLOG.md and check for duplicates (similar issues already documented) \
+4. DEDUPLICATION: Before adding any issue to .ralph/PRD.md: \
+   - Read .ralph/PRD.md and check for duplicates (similar issues already documented as tasks) \
    - Only add if it provides new critical information or indicates the issue is more severe than previously documented \
-   - If a similar issue exists, update the existing entry rather than creating a duplicate \
-5. Format .ralph/BACKLOG.md with clear sections and markdown formatting for easy review. \
-6. For each finding, document: \
-   - Category (Security, Data Integrity, Production Blocker, Performance) \
-   - Description with measurable impact \
-   - Location (file path and relevant code sections) \
-   - Priority (CRITICAL or HIGH only) \
-   - Specific evidence of impact \
-   - Suggested approach for addressing it \
-7. If .ralph/BACKLOG.md doesn't exist, create it. If it exists, append new findings (avoid duplicates). \
-8. Organize findings by category and priority for easy integration into .ralph/PRD.md later. \
-9. If there are no CRITICAL or HIGH priority issues to add, output 'No critical issues found' and skip updating .ralph/BACKLOG.md. \
-Complete the analysis and update .ralph/BACKLOG.md - do not ask for confirmation before adding items.`
+   - If a similar issue exists, update the existing task rather than creating a duplicate \
+5. PRD TASK FORMAT: For each finding, add a new task to the Tasks section of .ralph/PRD.md following this exact format: \
+   - [ ] **Task [N]: [Issue Category] - [Brief Issue Description]** \
+   \
+   **Description:** [Clear description of the issue with measurable impact. Include: category (Security/Data Integrity/Production Blocker/Performance), location (file path and relevant code sections), specific evidence of impact, and suggested approach for addressing it] \
+   \
+   **Verification Criteria:** \
+   - [ ] [Specific, measurable criterion 1 - e.g., 'Security vulnerability is patched and tested'] \
+   - [ ] [Specific, measurable criterion 2 - e.g., 'Performance issue resolved with benchmark showing <500ms latency'] \
+   - [ ] [Specific, measurable criterion 3 - e.g., 'All affected code paths are covered by tests'] \
+   \
+   **Complexity:** [easy/medium/hard - assess based on the scope of work needed to address the issue] \
+   \
+   --- \
+6. Add new tasks to the end of the Tasks section in .ralph/PRD.md, maintaining the existing format and structure. \
+7. If there are no CRITICAL or HIGH priority issues to add, output 'No critical issues found' and skip updating .ralph/PRD.md. \
+Complete the analysis and update .ralph/PRD.md - do not ask for confirmation before adding items.`
 
 const BuiltInStep6Prompt = `@.ralph/PRD.md @.ralph/PROGRESS.md \
 Review the changes and commit with a clear message. \
