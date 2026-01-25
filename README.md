@@ -15,6 +15,14 @@ Ralph is an automated development assistant that runs a structured workflow to c
 
 Ralph can resume from checkpoints if interrupted, handles timeouts with retries, and automatically detects when work is complete or blocked.
 
+### Two Modes of Operation
+
+Ralph supports two modes:
+
+- **Standalone Mode**: Works with a local PRD file (`.ralph/PRD.md`). Perfect for one-off tasks, personal projects, or when you want full control over the task list.
+
+- **Manager Mode**: Integrates with Linear to automatically process tickets. Fetches tickets, creates branches, runs the development loop, and creates pull requests automatically. Ideal for teams using Linear for project management.
+
 ## Features
 
 - **Autonomous operation** - Makes decisions independently without asking for confirmation
@@ -69,7 +77,11 @@ If a `.ralph` directory doesn't exist or specific files are missing, the executa
 
 ## Usage
 
-### Basic Usage
+Ralph has two modes: **Standalone Mode** (works with local PRD files) and **Manager Mode** (automatically processes Linear tickets). Choose the mode that fits your workflow.
+
+### Standalone Mode
+
+Use standalone mode when you have a PRD file and want to work on tasks locally:
 
 ```bash
 # Run Ralph with a specified number of iterations
@@ -116,9 +128,20 @@ After exporting, you can edit the prompt files in `.ralph/` to customize Ralph's
 ./ralph -v
 ```
 
-### Linear Manager Mode
+### Manager Mode (Linear Integration)
 
-Ralph can automatically process tickets from Linear, running the development loop for each ticket:
+Manager mode automatically processes tickets from Linear, running the development loop for each ticket. This mode is ideal for teams that use Linear for project management and want to automate the development workflow from ticket to pull request.
+
+**When to use Manager Mode:**
+- Your team uses Linear for project management
+- You want to automate the full workflow: ticket → branch → code → PR
+- You want progress updates automatically posted to Linear tickets
+- You need automatic PR creation when tickets are completed
+
+**When to use Standalone Mode:**
+- You're working on a personal project or one-off task
+- You prefer to manage tasks in a local PRD file
+- You don't use Linear or want more control over the workflow
 
 ```bash
 # List all tickets in a project (for testing connectivity)
