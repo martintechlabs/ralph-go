@@ -334,6 +334,15 @@ func initProject(description string) error {
 		return fmt.Errorf("failed to create .ralph directory: %v", err)
 	}
 
+	// Clear out old files from previous runs
+	oldFiles := []string{".ralph/PROGRESS.md", ".ralph/PLAN.md", "PROGRESS.md", "PLAN.md"}
+	for _, file := range oldFiles {
+		if err := os.Remove(file); err != nil && !os.IsNotExist(err) {
+			// Log but don't fail if file can't be removed (e.g., permissions issue)
+			fmt.Printf("⚠️  Warning: could not remove %s: %v\n", file, err)
+		}
+	}
+
 	// If description is provided, use PRD creation flow
 	if description != "" {
 		return createPRD(description)

@@ -1,7 +1,7 @@
 package main
 
 // Version is the application version
-const Version = "0.1.1"
+const Version = "0.1.2"
 
 // Timeout configuration (in seconds)
 const (
