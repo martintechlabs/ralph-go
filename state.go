@@ -114,12 +114,21 @@ func detectResume(maxIterations int) (*State, int, error) {
 		return nil, 0, nil
 	}
 
-	// Determine resume step based on PLAN.md existence
+	// Determine resume step based on PLAN.md existence and last completed step
 	var resumeStep int
 	var stepName string
 	if _, err := os.Stat("PLAN.md"); err == nil {
 		resumeStep = 2
 		stepName = "Step 2 (Implementation)"
+	} else if state.LastCompletedStep >= 5 {
+		resumeStep = 6
+		stepName = "Step 6 (Commit)"
+	} else if state.LastCompletedStep >= 4 {
+		resumeStep = 5
+		stepName = "Step 5 (Self-Improvement)"
+	} else if state.LastCompletedStep >= 3 {
+		resumeStep = 4
+		stepName = "Step 4 (CLAUDE.md Refactoring)"
 	} else if state.LastCompletedStep >= 2 {
 		resumeStep = 3
 		stepName = "Step 3 (Cleanup)"

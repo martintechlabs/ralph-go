@@ -76,7 +76,32 @@ const BuiltInStep3Prompt = `@.ralph/PRD.md @.ralph/PLAN.md @.ralph/PROGRESS.md \
 5. Update @README.md with any applicable changes. Update README.md only if: 1) New features were added that users should know about, 2) Setup/installation steps changed, 3) Configuration options were added/removed. \
 If no README updates are needed, skip that step - do not ask.`
 
-const BuiltInStep4Prompt = `@.ralph/PRD.md @.ralph/PROGRESS.md \
+const BuiltInStep4Prompt = `@CLAUDE.md \
+I want you to refactor my CLAUDE.md file to follow progressive disclosure principles.
+
+Follow these steps:
+
+1. **Find contradictions**: Identify any instructions that conflict with each other. For each contradiction, ask me which version I want to keep.
+
+2. **Identify the essentials**: Extract only what belongs in the root CLAUDE.md:
+   - One-sentence project description
+   - Package manager (if not npm)
+   - Non-standard build/typecheck commands
+   - Anything truly relevant to every single task
+
+3. **Group the rest**: Organize remaining instructions into logical categories (e.g., TypeScript conventions, testing patterns, API design, Git workflow). For each group, create a separate markdown file.
+
+4. **Create the file structure**: Output:
+   - A minimal root CLAUDE.md with markdown links to the separate files
+   - Each separate file with its relevant instructions
+   - A suggested docs/ folder structure
+
+5. **Flag for deletion**: Identify any instructions that are:
+   - Redundant (the agent already knows this)
+   - Too vague to be actionable
+   - Overly obvious (like "write clean code")`
+
+const BuiltInStep5Prompt = `@.ralph/PRD.md @.ralph/PROGRESS.md \
 Analyze the codebase for improvements, but ONLY add CRITICAL and HIGH priority issues to .ralph/BACKLOG.md. \
 1. Review the entire codebase for: \
    - Code smells (duplication, complexity, poor naming, magic numbers, etc.) \
@@ -112,7 +137,7 @@ Analyze the codebase for improvements, but ONLY add CRITICAL and HIGH priority i
 9. If there are no CRITICAL or HIGH priority issues to add, output 'No critical issues found' and skip updating .ralph/BACKLOG.md. \
 Complete the analysis and update .ralph/BACKLOG.md - do not ask for confirmation before adding items.`
 
-const BuiltInStep5Prompt = `@.ralph/PRD.md @.ralph/PROGRESS.md \
+const BuiltInStep6Prompt = `@.ralph/PRD.md @.ralph/PROGRESS.md \
 Review the changes and commit with a clear message. \
 Use format: 'feat: [brief description]' or 'fix: [brief description]' based on the changes. \
 Review git status, stage all relevant changes, and commit - do not ask for approval. \
@@ -185,6 +210,7 @@ const (
 	Step3PromptFile  = ".ralph/step3_prompt.txt"
 	Step4PromptFile  = ".ralph/step4_prompt.txt"
 	Step5PromptFile  = ".ralph/step5_prompt.txt"
+	Step6PromptFile  = ".ralph/step6_prompt.txt"
 	SamplePRDFile    = ".ralph/PRD.md"
 )
 
@@ -219,6 +245,9 @@ func getStepPrompt(stepNum int) string {
 	case 5:
 		filename = Step5PromptFile
 		builtInPrompt = BuiltInStep5Prompt
+	case 6:
+		filename = Step6PromptFile
+		builtInPrompt = BuiltInStep6Prompt
 	default:
 		return builtInPrompt
 	}
@@ -250,6 +279,7 @@ func exportPrompts() error {
 		Step3PromptFile: BuiltInStep3Prompt,
 		Step4PromptFile: BuiltInStep4Prompt,
 		Step5PromptFile: BuiltInStep5Prompt,
+		Step6PromptFile: BuiltInStep6Prompt,
 	}
 
 	for filename, prompt := range stepPrompts {

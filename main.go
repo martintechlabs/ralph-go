@@ -26,12 +26,13 @@ func printHelp() {
 	fmt.Println("  --version, -v     Display version information")
 	fmt.Println()
 	fmt.Println("Description:")
-	fmt.Println("  Runs a Ralph loop that executes a series of development steps:")
-	fmt.Println("  - Step 1: Planning")
-	fmt.Println("  - Step 2: Implementation and Validation")
-	fmt.Println("  - Step 3: Cleanup and Documentation")
-	fmt.Println("  - Step 4: Self-Improvement Analysis (every 5th iteration)")
-	fmt.Println("  - Step 5: Commit")
+		fmt.Println("  Runs a Ralph loop that executes a series of development steps:")
+		fmt.Println("  - Step 1: Planning")
+		fmt.Println("  - Step 2: Implementation and Validation")
+		fmt.Println("  - Step 3: Cleanup and Documentation")
+		fmt.Println("  - Step 4: CLAUDE.md Refactoring")
+		fmt.Println("  - Step 5: Self-Improvement Analysis (every 5th iteration)")
+		fmt.Println("  - Step 6: Commit")
 	fmt.Println()
 	fmt.Println("Features:")
 	fmt.Println("  - Automatic resume from last checkpoint if interrupted")
@@ -252,62 +253,89 @@ func main() {
 			fmt.Println("⏭️  Step 3: Skipping (resuming from later step)")
 		}
 
-		// Step 4: Self-Improvement Analysis (every 5th iteration)
-		if i%5 == 0 {
-			if skipToStep <= 4 {
-				state.CurrentStep = 4
-				state.LastCompletedStep = 3
-				if err := saveState(state); err != nil {
-					fmt.Fprintf(os.Stderr, "Error saving state: %v\n", err)
-				}
-
-				_, err := step4SelfImprovement(i, maxIterations)
-				if err != nil {
-					fmt.Fprintf(os.Stderr, "Error in Step 4:\n%v\n", err)
-					if err := saveState(state); err != nil {
-						fmt.Fprintf(os.Stderr, "Error saving state: %v\n", err)
-					}
-					os.Exit(0)
-				}
-
-				// Step 4 completed successfully
-				state.CurrentStep = 5
-				state.LastCompletedStep = 4
-				if err := saveState(state); err != nil {
-					fmt.Fprintf(os.Stderr, "Error saving state: %v\n", err)
-				}
-			} else {
-				fmt.Println("⏭️  Step 4: Skipping (resuming from later step)")
-			}
-		} else {
-			fmt.Println("⏭️  Step 4: Skipping self-improvement analysis (runs every 5th iteration)")
-		}
-
-		// Step 5: Commit
-		if skipToStep <= 5 || skipToStep == 0 {
-			state.CurrentStep = 5
-			state.LastCompletedStep = 4
+		// Step 4: CLAUDE.md Refactoring
+		if skipToStep <= 4 {
+			state.CurrentStep = 4
+			state.LastCompletedStep = 3
 			if err := saveState(state); err != nil {
 				fmt.Fprintf(os.Stderr, "Error saving state: %v\n", err)
 			}
 
-			_, err := step5Commit(i, maxIterations)
+			_, err := step4AgentsRefactor(i, maxIterations)
 			if err != nil {
-				fmt.Fprintf(os.Stderr, "Error in Step 5:\n%v\n", err)
+				fmt.Fprintf(os.Stderr, "Error in Step 4:\n%v\n", err)
 				if err := saveState(state); err != nil {
 					fmt.Fprintf(os.Stderr, "Error saving state: %v\n", err)
 				}
 				os.Exit(0)
 			}
 
-			// Step 5 completed successfully
-			state.CurrentStep = 0
-			state.LastCompletedStep = 5
+			// Step 4 completed successfully
+			state.CurrentStep = 5
+			state.LastCompletedStep = 4
 			if err := saveState(state); err != nil {
 				fmt.Fprintf(os.Stderr, "Error saving state: %v\n", err)
 			}
 		} else {
-			fmt.Println("⏭️  Step 5: Skipping (resuming from later step)")
+			fmt.Println("⏭️  Step 4: Skipping (resuming from later step)")
+		}
+
+		// Step 5: Self-Improvement Analysis (every 5th iteration)
+		if i%5 == 0 {
+			if skipToStep <= 5 {
+				state.CurrentStep = 5
+				state.LastCompletedStep = 4
+				if err := saveState(state); err != nil {
+					fmt.Fprintf(os.Stderr, "Error saving state: %v\n", err)
+				}
+
+				_, err := step5SelfImprovement(i, maxIterations)
+				if err != nil {
+					fmt.Fprintf(os.Stderr, "Error in Step 5:\n%v\n", err)
+					if err := saveState(state); err != nil {
+						fmt.Fprintf(os.Stderr, "Error saving state: %v\n", err)
+					}
+					os.Exit(0)
+				}
+
+				// Step 5 completed successfully
+				state.CurrentStep = 6
+				state.LastCompletedStep = 5
+				if err := saveState(state); err != nil {
+					fmt.Fprintf(os.Stderr, "Error saving state: %v\n", err)
+				}
+			} else {
+				fmt.Println("⏭️  Step 5: Skipping (resuming from later step)")
+			}
+		} else {
+			fmt.Println("⏭️  Step 5: Skipping self-improvement analysis (runs every 5th iteration)")
+		}
+
+		// Step 6: Commit
+		if skipToStep <= 6 || skipToStep == 0 {
+			state.CurrentStep = 6
+			state.LastCompletedStep = 5
+			if err := saveState(state); err != nil {
+				fmt.Fprintf(os.Stderr, "Error saving state: %v\n", err)
+			}
+
+			_, err := step6Commit(i, maxIterations)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "Error in Step 6:\n%v\n", err)
+				if err := saveState(state); err != nil {
+					fmt.Fprintf(os.Stderr, "Error saving state: %v\n", err)
+				}
+				os.Exit(0)
+			}
+
+			// Step 6 completed successfully
+			state.CurrentStep = 0
+			state.LastCompletedStep = 6
+			if err := saveState(state); err != nil {
+				fmt.Fprintf(os.Stderr, "Error saving state: %v\n", err)
+			}
+		} else {
+			fmt.Println("⏭️  Step 6: Skipping (resuming from later step)")
 		}
 
 		// Clear resume step after first iteration

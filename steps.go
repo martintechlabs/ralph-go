@@ -86,7 +86,7 @@ func step3Cleanup(iteration, maxIterations int) (*ClaudeResult, error) {
 	return executeStepWithRetry(3, "🧹 Step 3: Cleanup and Documentation...", TimeoutCleanup, systemPrompt, prompt)
 }
 
-func step4SelfImprovement(iteration, maxIterations int) (*ClaudeResult, error) {
+func step4AgentsRefactor(iteration, maxIterations int) (*ClaudeResult, error) {
 	systemPrompt, err := getSystemPrompt()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get system prompt: %v", err)
@@ -94,10 +94,10 @@ func step4SelfImprovement(iteration, maxIterations int) (*ClaudeResult, error) {
 
 	prompt := getStepPrompt(4)
 
-	return executeStepWithRetry(4, fmt.Sprintf("🔍 Step 4: Self-Improvement Analysis (iteration %d)...", iteration), TimeoutSelfImprovement, systemPrompt, prompt)
+	return executeStepWithRetry(4, "📝 Step 4: CLAUDE.md Refactoring...", TimeoutCleanup, systemPrompt, prompt)
 }
 
-func step5Commit(iteration, maxIterations int) (*ClaudeResult, error) {
+func step5SelfImprovement(iteration, maxIterations int) (*ClaudeResult, error) {
 	systemPrompt, err := getSystemPrompt()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get system prompt: %v", err)
@@ -105,5 +105,16 @@ func step5Commit(iteration, maxIterations int) (*ClaudeResult, error) {
 
 	prompt := getStepPrompt(5)
 
-	return executeStepWithRetry(5, "💾 Step 5: Commit...", TimeoutCommit, systemPrompt, prompt)
+	return executeStepWithRetry(5, fmt.Sprintf("🔍 Step 5: Self-Improvement Analysis (iteration %d)...", iteration), TimeoutSelfImprovement, systemPrompt, prompt)
+}
+
+func step6Commit(iteration, maxIterations int) (*ClaudeResult, error) {
+	systemPrompt, err := getSystemPrompt()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get system prompt: %v", err)
+	}
+
+	prompt := getStepPrompt(6)
+
+	return executeStepWithRetry(6, "💾 Step 6: Commit...", TimeoutCommit, systemPrompt, prompt)
 }
