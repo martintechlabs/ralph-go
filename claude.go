@@ -28,6 +28,10 @@ type streamMessage struct {
 		} `json:"content"`
 	} `json:"message"`
 	Result string `json:"result"`
+	Error  struct {
+		Type    string `json:"type"`
+		Message string `json:"message"`
+	} `json:"error"`
 }
 
 func runClaude(timeoutSeconds int, systemPrompt string, prompt string) (*ClaudeResult, error) {
@@ -67,6 +71,7 @@ func runClaude(timeoutSeconds int, systemPrompt string, prompt string) (*ClaudeR
 	// Read and process streaming output
 	var fullOutput strings.Builder  // For debugging/error messages
 	var textOutput strings.Builder   // For actual text content (PRD extraction)
+	var streamError strings.Builder // For error messages from JSON stream
 	scanner := bufio.NewScanner(stdout)
 
 	// Process stdout line by line
@@ -82,6 +87,18 @@ func runClaude(timeoutSeconds int, systemPrompt string, prompt string) (*ClaudeR
 			// Parse JSON stream message
 			var msg streamMessage
 			if err := json.Unmarshal([]byte(line), &msg); err == nil {
+				// Check for error messages in the stream
+				if msg.Type == "error" {
+					if msg.Error.Message != "" {
+						streamError.WriteString(msg.Error.Message)
+						streamError.WriteString(" ")
+					}
+					if msg.Error.Type != "" {
+						streamError.WriteString(msg.Error.Type)
+						streamError.WriteString(" ")
+					}
+				}
+
 				// Extract and print streaming text from assistant messages
 				// This matches: select(.type == "assistant").message.content[]? | select(.type == "text").text
 				if msg.Type == "assistant" {
@@ -146,13 +163,15 @@ func runClaude(timeoutSeconds int, systemPrompt string, prompt string) (*ClaudeR
 		// Check if it was a timeout
 		if ctx.Err() == context.DeadlineExceeded {
 			result.Success = false
-			return result, fmt.Errorf("timeout after %d seconds", timeoutSeconds)
+			details := extractErrorDetails(stderrStr, streamError.String(), err)
+			details.Category = "timeout"
+			details.Message = fmt.Sprintf("Request timeout after %d seconds", timeoutSeconds)
+			details.Suggestion = "The request took too long to complete. This may be due to a slow connection, API issues, or a very complex request."
+			return result, formatClaudeError(details)
 		}
-		// For other errors, include stderr in the error message for better debugging
-		if stderrStr != "" {
-			return result, fmt.Errorf("claude command failed: %v\nstderr: %s", err, stderrStr)
-		}
-		return result, fmt.Errorf("claude command failed: %v", err)
+		// Extract error details and format user-friendly error message
+		details := extractErrorDetails(stderrStr, streamError.String(), err)
+		return result, formatClaudeError(details)
 	}
 
 	// Check for special markers in the full output
@@ -164,4 +183,123 @@ func runClaude(timeoutSeconds int, systemPrompt string, prompt string) (*ClaudeR
 
 func contextWithTimeout(seconds int) (context.Context, context.CancelFunc) {
 	return context.WithTimeout(context.Background(), time.Duration(seconds)*time.Second)
+}
+
+// ErrorDetails contains structured error information extracted from Claude CLI
+type ErrorDetails struct {
+	Category    string // timeout, authentication, rate_limit, api_error, network, unknown
+	Message     string // User-friendly error message
+	Suggestion  string // Actionable suggestion for the user
+	Technical   string // Technical details for debugging
+	StreamError string // Error from JSON stream if available
+}
+
+// extractErrorDetails parses stderr and identifies error types
+func extractErrorDetails(stderr string, streamError string, rawError error) *ErrorDetails {
+	details := &ErrorDetails{
+		Category:    "unknown",
+		Technical:   rawError.Error(),
+		StreamError: streamError,
+	}
+
+	// Combine stderr and streamError for analysis
+	combinedError := strings.ToLower(stderr + " " + streamError)
+
+	// Check for authentication errors
+	if strings.Contains(combinedError, "authentication") ||
+		strings.Contains(combinedError, "unauthorized") ||
+		strings.Contains(combinedError, "invalid api key") ||
+		strings.Contains(combinedError, "api key") ||
+		strings.Contains(combinedError, "not authenticated") ||
+		strings.Contains(combinedError, "auth") {
+		details.Category = "authentication"
+		details.Message = "Claude API authentication error"
+		details.Suggestion = "The Claude CLI could not authenticate. Please check your API key.\n   Run: claude auth login"
+		return details
+	}
+
+	// Check for rate limit errors
+	if strings.Contains(combinedError, "rate limit") ||
+		strings.Contains(combinedError, "rate_limit") ||
+		strings.Contains(combinedError, "too many requests") ||
+		strings.Contains(combinedError, "429") {
+		details.Category = "rate_limit"
+		details.Message = "Claude API rate limit exceeded"
+		details.Suggestion = "Too many requests. Please wait a few minutes and try again."
+		return details
+	}
+
+	// Check for network errors
+	if strings.Contains(combinedError, "network") ||
+		strings.Contains(combinedError, "connection") ||
+		strings.Contains(combinedError, "timeout") ||
+		strings.Contains(combinedError, "dns") ||
+		strings.Contains(combinedError, "refused") ||
+		strings.Contains(combinedError, "no such host") {
+		details.Category = "network"
+		details.Message = "Network connection error"
+		details.Suggestion = "Unable to connect to Claude API. Please check your internet connection and try again."
+		return details
+	}
+
+	// Check for API errors
+	if strings.Contains(combinedError, "api error") ||
+		strings.Contains(combinedError, "bad request") ||
+		strings.Contains(combinedError, "400") ||
+		strings.Contains(combinedError, "500") ||
+		strings.Contains(combinedError, "502") ||
+		strings.Contains(combinedError, "503") ||
+		strings.Contains(combinedError, "internal server error") {
+		details.Category = "api_error"
+		details.Message = "Claude API error"
+		if stderr != "" {
+			details.Suggestion = fmt.Sprintf("The Claude API returned an error. Details: %s", stderr)
+		} else {
+			details.Suggestion = "The Claude API returned an error. Please try again later."
+		}
+		return details
+	}
+
+	// Check for timeout (already handled separately, but include for completeness)
+	if strings.Contains(combinedError, "timeout") || strings.Contains(combinedError, "deadline exceeded") {
+		details.Category = "timeout"
+		details.Message = "Request timeout"
+		details.Suggestion = "The request took too long to complete. This may be due to a slow connection or API issues."
+		return details
+	}
+
+	// Default: unknown error
+	details.Category = "unknown"
+	details.Message = "Claude command failed"
+	if stderr != "" {
+		details.Suggestion = fmt.Sprintf("An unexpected error occurred. Error details: %s", stderr)
+	} else {
+		details.Suggestion = "An unexpected error occurred. Please check your Claude CLI configuration and try again."
+	}
+	return details
+}
+
+// formatClaudeError formats a user-friendly error message from error details
+func formatClaudeError(details *ErrorDetails) error {
+	var msg strings.Builder
+	msg.WriteString(details.Message)
+	
+	if details.Suggestion != "" {
+		// Add suggestion with proper indentation
+		lines := strings.Split(details.Suggestion, "\n")
+		for _, line := range lines {
+			if line != "" {
+				msg.WriteString("\n   ")
+				msg.WriteString(line)
+			}
+		}
+	}
+	
+	// Include technical details if they're different from the message
+	if details.Technical != "" && !strings.Contains(strings.ToLower(details.Technical), strings.ToLower(details.Message)) {
+		msg.WriteString("\n   Technical details: ")
+		msg.WriteString(details.Technical)
+	}
+	
+	return fmt.Errorf("%s", msg.String())
 }

@@ -30,7 +30,9 @@ func executeStepWithRetry(stepNum int, stepName string, timeout int, systemPromp
 		}
 
 		if err != nil {
-			if strings.Contains(err.Error(), "timeout") {
+			// Check for timeout errors (they may be formatted differently now)
+			errStr := err.Error()
+			if strings.Contains(errStr, "timeout") || strings.Contains(errStr, "Request timeout") {
 				if attempt >= MaxRetries-1 {
 					fmt.Printf("⏱️  %s timed out after %d attempts\n", stepName, MaxRetries)
 					return result, err
@@ -38,7 +40,8 @@ func executeStepWithRetry(stepNum int, stepName string, timeout int, systemPromp
 				fmt.Printf("⏱️  %s timed out after %ds, will retry...\n", stepName, timeout)
 				continue
 			}
-			fmt.Printf("❌ %s failed: %v\n", stepName, err)
+			// Display formatted error message (already includes user-friendly formatting)
+			fmt.Printf("❌ %s failed:\n%s\n", stepName, err.Error())
 			return result, err
 		}
 

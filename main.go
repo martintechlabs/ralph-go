@@ -159,7 +159,7 @@ func main() {
 
 			result, err := step1Planning(i, maxIterations)
 			if err != nil {
-				fmt.Fprintf(os.Stderr, "Error in Step 1: %v\n", err)
+				fmt.Fprintf(os.Stderr, "Error in Step 1:\n%v\n", err)
 				if err := saveState(state); err != nil {
 					fmt.Fprintf(os.Stderr, "Error saving state: %v\n", err)
 				}
@@ -200,7 +200,7 @@ func main() {
 
 			result, err := step2Implementation(i, maxIterations)
 			if err != nil {
-				fmt.Fprintf(os.Stderr, "Error in Step 2: %v\n", err)
+				fmt.Fprintf(os.Stderr, "Error in Step 2:\n%v\n", err)
 				if err := saveState(state); err != nil {
 					fmt.Fprintf(os.Stderr, "Error saving state: %v\n", err)
 				}
@@ -235,7 +235,7 @@ func main() {
 
 			_, err := step3Cleanup(i, maxIterations)
 			if err != nil {
-				fmt.Fprintf(os.Stderr, "Error in Step 3: %v\n", err)
+				fmt.Fprintf(os.Stderr, "Error in Step 3:\n%v\n", err)
 				if err := saveState(state); err != nil {
 					fmt.Fprintf(os.Stderr, "Error saving state: %v\n", err)
 				}
@@ -263,7 +263,7 @@ func main() {
 
 				_, err := step4SelfImprovement(i, maxIterations)
 				if err != nil {
-					fmt.Fprintf(os.Stderr, "Error in Step 4: %v\n", err)
+					fmt.Fprintf(os.Stderr, "Error in Step 4:\n%v\n", err)
 					if err := saveState(state); err != nil {
 						fmt.Fprintf(os.Stderr, "Error saving state: %v\n", err)
 					}
@@ -293,7 +293,7 @@ func main() {
 
 			_, err := step5Commit(i, maxIterations)
 			if err != nil {
-				fmt.Fprintf(os.Stderr, "Error in Step 5: %v\n", err)
+				fmt.Fprintf(os.Stderr, "Error in Step 5:\n%v\n", err)
 				if err := saveState(state); err != nil {
 					fmt.Fprintf(os.Stderr, "Error saving state: %v\n", err)
 				}

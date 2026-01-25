@@ -151,7 +151,8 @@ func prdDiscoveryFlow(description string) (string, error) {
 	// Run Claude with the discovery prompt
 	result, err := runClaude(TimeoutPRDCreation, systemPrompt, userPrompt)
 	if err != nil {
-		return "", fmt.Errorf("Claude API error: %v", err)
+		// Error is already formatted by formatClaudeError(), just wrap it
+		return "", fmt.Errorf("PRD creation failed: %w", err)
 	}
 
 	if !result.Success {
