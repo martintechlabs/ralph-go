@@ -10,10 +10,10 @@ import (
 )
 
 type State struct {
-	Iteration         int
-	MaxIterations     int
-	CurrentStep       int
-	LastCompletedStep int
+	Iteration            int
+	MaxIterations        int
+	CurrentStep          int
+	LastCompletedWorkflow int
 }
 
 func loadState() (*State, error) {
@@ -50,8 +50,11 @@ func loadState() (*State, error) {
 			state.MaxIterations, _ = strconv.Atoi(value)
 		case "current_step":
 			state.CurrentStep, _ = strconv.Atoi(value)
+		case "last_completed_workflow":
+			state.LastCompletedWorkflow, _ = strconv.Atoi(value)
 		case "last_completed_step":
-			state.LastCompletedStep, _ = strconv.Atoi(value)
+			// Backward compatibility: handle old key name
+			state.LastCompletedWorkflow, _ = strconv.Atoi(value)
 		}
 	}
 
@@ -78,7 +81,7 @@ func saveState(state *State) error {
 	fmt.Fprintf(file, "iteration=%d\n", state.Iteration)
 	fmt.Fprintf(file, "max_iterations=%d\n", state.MaxIterations)
 	fmt.Fprintf(file, "current_step=%d\n", state.CurrentStep)
-	fmt.Fprintf(file, "last_completed_step=%d\n", state.LastCompletedStep)
+	fmt.Fprintf(file, "last_completed_workflow=%d\n", state.LastCompletedWorkflow)
 
 	return nil
 }
@@ -88,6 +91,17 @@ func clearState() error {
 		return nil
 	}
 	return os.Remove(StateFile)
+}
+
+func getStepName(step int) string {
+	stepNames := map[int]string{
+		1: "Workflow 1 (Plan and Implement)",
+		2: "Workflow 2 (Clean up and Review)",
+	}
+	if name, ok := stepNames[step]; ok {
+		return name
+	}
+	return fmt.Sprintf("Workflow %d", step)
 }
 
 func detectResume(maxIterations int) (*State, int, error) {
@@ -118,33 +132,40 @@ func detectResumeWithPrompt(maxIterations int, interactive bool) (*State, int, e
 		return nil, 0, nil
 	}
 
-	// Determine resume step based on PLAN.md existence and last completed step
+	// Simplified resume logic:
+	// - Track iteration and which workflow (1 or 2) we were in
+	// - If LastCompletedWorkflow == 2: Workflow 2 completed, need to check for new tasks (same iteration)
+	// - If LastCompletedWorkflow == 1: we were in workflow 2, resume at workflow 2 (same iteration)
+	// - Otherwise (LastCompletedWorkflow == 0): we were in workflow 1, resume at beginning of workflow 1 (same iteration)
+	// Note: Iterations only increment when we complete a full cycle (Workflow 1 -> Workflow 2 -> no new tasks)
 	var resumeStep int
-	var stepName string
-	if _, err := os.Stat("PLAN.md"); err == nil {
+	var resumeIteration int
+	if state.LastCompletedWorkflow == 2 {
+		// Workflow 2 completed, need to check for new tasks in same iteration
+		// Use resumeStep = 3 to indicate "skip both workflows, check tasks"
+		resumeIteration = state.Iteration
+		resumeStep = 3 // Special value: skip both workflows, go to task checking
+	} else if state.LastCompletedWorkflow == 1 {
+		// Workflow 1 complete, resume at workflow 2 of same iteration
+		resumeIteration = state.Iteration
 		resumeStep = 2
-		stepName = "Step 2 (Implementation)"
-	} else if state.LastCompletedStep >= 5 {
-		resumeStep = 6
-		stepName = "Step 6 (Commit)"
-	} else if state.LastCompletedStep >= 4 {
-		resumeStep = 5
-		stepName = "Step 5 (Self-Improvement)"
-	} else if state.LastCompletedStep >= 3 {
-		resumeStep = 4
-		stepName = "Step 4 (CLAUDE.md Refactoring)"
-	} else if state.LastCompletedStep >= 2 {
-		resumeStep = 3
-		stepName = "Step 3 (Cleanup)"
 	} else {
+		// No workflow complete yet, resume at workflow 1 of same iteration
+		resumeIteration = state.Iteration
 		resumeStep = 1
-		stepName = "Step 1 (Planning)"
+	}
+
+	var stepName string
+	if resumeStep == 3 {
+		stepName = "Task check (after Workflow 2)"
+	} else {
+		stepName = getStepName(resumeStep)
 	}
 
 	// Prompt user if interactive mode
 	if interactive {
 		fmt.Println("🔄 Resume detected:")
-		fmt.Printf("   Iteration: %d/%d\n", state.Iteration, state.MaxIterations)
+		fmt.Printf("   Iteration: %d/%d\n", resumeIteration, state.MaxIterations)
 		fmt.Printf("   Resume from: %s\n", stepName)
 		fmt.Println()
 		fmt.Print("Continue from here? (Y/n): ")
@@ -160,7 +181,7 @@ func detectResumeWithPrompt(maxIterations int, interactive bool) (*State, int, e
 			return nil, 0, nil
 		}
 	} else {
-		fmt.Printf("🔄 Auto-resuming from iteration %d/%d, step %s\n", state.Iteration, state.MaxIterations, stepName)
+		fmt.Printf("🔄 Auto-resuming from iteration %d/%d, %s\n", resumeIteration, state.MaxIterations, stepName)
 	}
 
 	return state, resumeStep, nil

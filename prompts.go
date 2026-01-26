@@ -38,7 +38,7 @@ EDGE CASE HANDLING:
 
 const BuiltInStep1Prompt = `@.ralph/PRD.md @.ralph/PROGRESS.md \
 1. Review all incomplete tasks in PRD and assess their complexity (easy, medium, hard). \
-2. PRIORITY: Find an incomplete task that is EASY or MEDIUM complexity. \
+2. PRIORITY: Find an incomplete task that is EASY or MEDIUM complexity. Bias towards tasks that are visiable to the user. \
 3. If no easy/medium tasks exist: \
    a. Select a MEDIUM-HARD complexity task \
    b. Break it down into 3-5 smaller, manageable subtasks (each should be easy or medium complexity) \
@@ -94,7 +94,7 @@ Follow these steps:
 4. **Create the file structure**: Output:
    - A minimal root CLAUDE.md with markdown links to the separate files
    - Each separate file with its relevant instructions
-   - A suggested docs/ folder structure
+   - All sub md files MUST be in the docs/ folder
 
 5. **Flag for deletion**: Identify any instructions that are:
    - Redundant (the agent already knows this)

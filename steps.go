@@ -118,3 +118,59 @@ func step6Commit(iteration, maxIterations int) (*ClaudeResult, error) {
 
 	return executeStepWithRetry(6, "💾 Step 6: Commit...", TimeoutCommit, systemPrompt, prompt)
 }
+
+// workflow1PlanAndImplement runs planning, implementation, and commit in sequence
+// Returns the result from planning step (which contains Complete flag)
+func workflow1PlanAndImplement(iteration, maxIterations int) (*ClaudeResult, error) {
+	// Step 1: Planning
+	result, err := step1Planning(iteration, maxIterations)
+	if err != nil {
+		return nil, err
+	}
+
+	// If blocked or complete, return early
+	if result.Blocked || result.Complete {
+		return result, nil
+	}
+
+	// Step 2: Implementation
+	implResult, err := step2Implementation(iteration, maxIterations)
+	if err != nil {
+		return nil, err
+	}
+	if implResult.Blocked {
+		result.Blocked = true
+		return result, nil
+	}
+
+	// Step 6: Commit
+	_, err = step6Commit(iteration, maxIterations)
+	if err != nil {
+		return nil, err
+	}
+
+	return result, nil
+}
+
+// workflow2CleanupAndReview runs cleanup, refactoring, and self-improvement in sequence
+func workflow2CleanupAndReview(iteration, maxIterations int) error {
+	// Step 3: Cleanup
+	_, err := step3Cleanup(iteration, maxIterations)
+	if err != nil {
+		return err
+	}
+
+	// Step 4: CLAUDE.md Refactoring
+	_, err = step4AgentsRefactor(iteration, maxIterations)
+	if err != nil {
+		return err
+	}
+
+	// Step 5: Self-Improvement
+	_, err = step5SelfImprovement(iteration, maxIterations)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
