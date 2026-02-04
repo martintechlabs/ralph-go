@@ -174,6 +174,9 @@ func prdDiscoveryFlow(description string) (string, error) {
 	// Extract PRD content from the output
 	prdContent := extractPRDFromOutput(result.Output)
 	if prdContent == "" {
+		// Emit debug info so the user can see what Claude returned and why extraction failed
+		prdEmitExtractionDebug(result.Output)
+
 		// Check if Claude asked questions instead of creating a PRD
 		outputLower := strings.ToLower(result.Output)
 		if strings.Contains(outputLower, "could you please") ||
@@ -188,6 +191,34 @@ func prdDiscoveryFlow(description string) (string, error) {
 	}
 
 	return prdContent, nil
+}
+
+// maxDebugOutputChars is the max raw output to print when extraction fails (avoid flooding terminal).
+const maxDebugOutputChars = 4000
+
+// prdEmitExtractionDebug prints the raw Claude output and extraction diagnostics to stderr when PRD extraction fails.
+func prdEmitExtractionDebug(rawOutput string) {
+	fmt.Fprintln(os.Stderr, "")
+	fmt.Fprintln(os.Stderr, "--- PRD extraction debug ---")
+	fmt.Fprintf(os.Stderr, "Raw Claude output length: %d characters\n", len(rawOutput))
+
+	display := rawOutput
+	if len(rawOutput) > maxDebugOutputChars {
+		display = rawOutput[:maxDebugOutputChars] + "\n... [truncated, total " + fmt.Sprint(len(rawOutput)) + " chars]"
+	}
+	fmt.Fprintf(os.Stderr, "Raw output:\n%s\n", display)
+
+	fmt.Fprintln(os.Stderr, "")
+	fmt.Fprintln(os.Stderr, "Extraction checks:")
+	fmt.Fprintf(os.Stderr, "  - contains \"# Product Requirements Document\": %v\n", strings.Contains(rawOutput, "# Product Requirements Document"))
+	fmt.Fprintf(os.Stderr, "  - contains \"```markdown\": %v\n", strings.Contains(rawOutput, "```markdown"))
+	fmt.Fprintf(os.Stderr, "  - contains \"```\": %v\n", strings.Contains(rawOutput, "```"))
+	fmt.Fprintf(os.Stderr, "  - contains \"## Overview\": %v\n", strings.Contains(rawOutput, "## Overview"))
+	fmt.Fprintf(os.Stderr, "  - contains \"## Tasks\": %v\n", strings.Contains(rawOutput, "## Tasks"))
+	fmt.Fprintln(os.Stderr, "")
+	fmt.Fprintln(os.Stderr, "Possible causes: output may be an error message; PRD may be inside an unclosed code block; line-based filter may have stopped too early (e.g. 'ready for development'); or extracted content was < 100 chars.")
+	fmt.Fprintln(os.Stderr, "--- end PRD extraction debug ---")
+	fmt.Fprintln(os.Stderr, "")
 }
 
 // extractPRDFromOutput extracts the PRD markdown from Claude's output
