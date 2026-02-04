@@ -160,7 +160,7 @@ func main() {
 	// Use shared loop function
 	completed, err := executeRalphWorkflow(maxIterations, nil)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		// Error already printed in steps.go with step context
 		os.Exit(1)
 	}
 

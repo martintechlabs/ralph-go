@@ -166,14 +166,15 @@ func runClaude(timeoutSeconds int, systemPrompt string, prompt string) (*ClaudeR
 		// Check if it was a timeout
 		if ctx.Err() == context.DeadlineExceeded {
 			result.Success = false
-			details := extractErrorDetails(stderrStr, streamError.String(), err)
+			details := extractErrorDetails(stderrStr, streamError.String(), fullOutput.String(), err)
 			details.Category = "timeout"
 			details.Message = fmt.Sprintf("Request timeout after %d seconds", timeoutSeconds)
 			details.Suggestion = "The request took too long to complete. This may be due to a slow connection, API issues, or a very complex request."
 			return result, formatClaudeError(details)
 		}
 		// Extract error details and format user-friendly error message
-		details := extractErrorDetails(stderrStr, streamError.String(), err)
+		// Include fullOutput for better diagnostics
+		details := extractErrorDetails(stderrStr, streamError.String(), fullOutput.String(), err)
 		return result, formatClaudeError(details)
 	}
 
@@ -195,14 +196,23 @@ type ErrorDetails struct {
 	Suggestion  string // Actionable suggestion for the user
 	Technical   string // Technical details for debugging
 	StreamError string // Error from JSON stream if available
+	FullOutput  string // Full command output for debugging
+	ExitCode    int    // Exit code if available
 }
 
 // extractErrorDetails parses stderr and identifies error types
-func extractErrorDetails(stderr string, streamError string, rawError error) *ErrorDetails {
+func extractErrorDetails(stderr string, streamError string, fullOutput string, rawError error) *ErrorDetails {
 	details := &ErrorDetails{
 		Category:    "unknown",
 		Technical:   rawError.Error(),
 		StreamError: streamError,
+		FullOutput:  fullOutput,
+	}
+
+	// Try to extract exit code from exec.ExitError
+	if exitError, ok := rawError.(*exec.ExitError); ok {
+		details.ExitCode = exitError.ExitCode()
+		details.Technical = fmt.Sprintf("exit status %d", exitError.ExitCode())
 	}
 
 	// Combine stderr and streamError for analysis
@@ -274,11 +284,49 @@ func extractErrorDetails(stderr string, streamError string, rawError error) *Err
 	// Default: unknown error
 	details.Category = "unknown"
 	details.Message = "Claude command failed"
+	
+	// Build a more informative suggestion
+	var suggestionParts []string
+	suggestionParts = append(suggestionParts, "An unexpected error occurred. Please check your Claude CLI configuration and try again.")
+	
 	if stderr != "" {
-		details.Suggestion = fmt.Sprintf("An unexpected error occurred. Error details: %s", stderr)
-	} else {
-		details.Suggestion = "An unexpected error occurred. Please check your Claude CLI configuration and try again."
+		suggestionParts = append(suggestionParts, fmt.Sprintf("\n   Stderr output: %s", stderr))
 	}
+	
+	if streamError != "" {
+		suggestionParts = append(suggestionParts, fmt.Sprintf("\n   Stream error: %s", streamError))
+	}
+	
+	if details.ExitCode != 0 {
+		suggestionParts = append(suggestionParts, fmt.Sprintf("\n   Exit code: %d", details.ExitCode))
+	}
+	
+	// Include relevant parts of fullOutput if it contains useful info
+	if fullOutput != "" {
+		// Look for error patterns in fullOutput
+		outputLines := strings.Split(fullOutput, "\n")
+		var errorLines []string
+		for _, line := range outputLines {
+			lowerLine := strings.ToLower(line)
+			if strings.Contains(lowerLine, "error") ||
+				strings.Contains(lowerLine, "failed") ||
+				strings.Contains(lowerLine, "invalid") ||
+				strings.Contains(lowerLine, "unauthorized") {
+				errorLines = append(errorLines, line)
+				if len(errorLines) >= 3 { // Limit to first 3 error lines
+					break
+				}
+			}
+		}
+		if len(errorLines) > 0 {
+			suggestionParts = append(suggestionParts, "\n   Command output (relevant lines):")
+			for _, line := range errorLines {
+				suggestionParts = append(suggestionParts, fmt.Sprintf("     %s", line))
+			}
+		}
+	}
+	
+	details.Suggestion = strings.Join(suggestionParts, "")
 	return details
 }
 
@@ -288,18 +336,15 @@ func formatClaudeError(details *ErrorDetails) error {
 	msg.WriteString(details.Message)
 	
 	if details.Suggestion != "" {
-		// Add suggestion with proper indentation
-		lines := strings.Split(details.Suggestion, "\n")
-		for _, line := range lines {
-			if line != "" {
-				msg.WriteString("\n   ")
-				msg.WriteString(line)
-			}
-		}
+		// Add suggestion - it already has proper formatting
+		msg.WriteString("\n")
+		msg.WriteString(details.Suggestion)
 	}
 	
-	// Include technical details if they're different from the message
-	if details.Technical != "" && !strings.Contains(strings.ToLower(details.Technical), strings.ToLower(details.Message)) {
+	// Include technical details if they're different from what's already shown
+	if details.Technical != "" && 
+		!strings.Contains(strings.ToLower(details.Suggestion), strings.ToLower(details.Technical)) &&
+		!strings.Contains(strings.ToLower(details.Technical), strings.ToLower(details.Message)) {
 		msg.WriteString("\n   Technical details: ")
 		msg.WriteString(details.Technical)
 	}

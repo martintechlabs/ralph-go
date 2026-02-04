@@ -44,7 +44,7 @@ const BuiltInStep1Prompt = `@.ralph/PRD.md @.ralph/PROGRESS.md \
    b. Break it down into 3-5 smaller, manageable subtasks (each should be easy or medium complexity) \
    c. Update .ralph/PRD.md by replacing the original task with the subtasks (maintain the same checkbox format) \
    d. Select ONE of the newly created subtasks to work on \
-4. Create a detailed plan for the selected task using "megathink" mode. Make sure to include vitests, detailed task breakdown and acceptance criteria. \
+4. Create a detailed plan for the selected task. Make sure to include vitests, detailed task breakdown and acceptance criteria. \
 5. Write the plan to .ralph/PLAN.md. \
 ONLY WORK ON ONE TASK. \
 DO NOT ask which task to work on - select one autonomously using the decision-making framework. \
