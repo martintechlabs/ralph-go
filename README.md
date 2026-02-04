@@ -202,7 +202,7 @@ base_branch = "main"
 ### How It Works
 
 1. **First Run**: Ralph reads `.ralph/PRD.md` and begins working through incomplete tasks
-2. **Each Iteration**: Executes all 6 steps (or 5 if not a 5th iteration, since Step 5 runs every 5th iteration)
+2. **Each Iteration**: Executes all 6 steps (or 5 if not a 5th iteration, since Step Self-Improvement runs every 5th iteration)
 3. **State Management**: Saves progress after each step, allowing resume if interrupted
 4. **Completion**: Stops when PRD is complete or iteration limit is reached
 5. **Blockers**: If Ralph encounters a blocker, it stops and reports the issue

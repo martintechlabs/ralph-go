@@ -61,7 +61,7 @@ func step1Planning(iteration, maxIterations int) (*ClaudeResult, error) {
 
 	prompt := getStepPrompt(1)
 
-	return executeStepWithRetry(1, "📋 Step 1: Planning...", TimeoutPlanning, systemPrompt, prompt)
+	return executeStepWithRetry(1, "📋 Step Planning...", TimeoutPlanning, systemPrompt, prompt)
 }
 
 func step2Implementation(iteration, maxIterations int) (*ClaudeResult, error) {
@@ -72,7 +72,7 @@ func step2Implementation(iteration, maxIterations int) (*ClaudeResult, error) {
 
 	prompt := getStepPrompt(2)
 
-	return executeStepWithRetry(2, "🔨 Step 2: Implementation and Validation...", TimeoutImplementation, systemPrompt, prompt)
+	return executeStepWithRetry(2, "🔨 Step Implementation and Validation...", TimeoutImplementation, systemPrompt, prompt)
 }
 
 func step3Cleanup(iteration, maxIterations int) (*ClaudeResult, error) {
@@ -83,7 +83,7 @@ func step3Cleanup(iteration, maxIterations int) (*ClaudeResult, error) {
 
 	prompt := getStepPrompt(3)
 
-	return executeStepWithRetry(3, "🧹 Step 3: Cleanup and Documentation...", TimeoutCleanup, systemPrompt, prompt)
+	return executeStepWithRetry(3, "🧹 Step Cleanup and Documentation...", TimeoutCleanup, systemPrompt, prompt)
 }
 
 func step4AgentsRefactor(iteration, maxIterations int) (*ClaudeResult, error) {
@@ -94,7 +94,7 @@ func step4AgentsRefactor(iteration, maxIterations int) (*ClaudeResult, error) {
 
 	prompt := getStepPrompt(4)
 
-	return executeStepWithRetry(4, "📝 Step 4: CLAUDE.md Refactoring...", TimeoutCleanup, systemPrompt, prompt)
+	return executeStepWithRetry(4, "📝 Step CLAUDE.md Refactoring...", TimeoutCleanup, systemPrompt, prompt)
 }
 
 func step5SelfImprovement(iteration, maxIterations int) (*ClaudeResult, error) {
@@ -105,7 +105,7 @@ func step5SelfImprovement(iteration, maxIterations int) (*ClaudeResult, error) {
 
 	prompt := getStepPrompt(5)
 
-	return executeStepWithRetry(5, fmt.Sprintf("🔍 Step 5: Self-Improvement Analysis (iteration %d)...", iteration), TimeoutSelfImprovement, systemPrompt, prompt)
+	return executeStepWithRetry(5, fmt.Sprintf("🔍 Step Self-Improvement Analysis (iteration %d)...", iteration), TimeoutSelfImprovement, systemPrompt, prompt)
 }
 
 func step6Commit(iteration, maxIterations int) (*ClaudeResult, error) {
@@ -116,13 +116,13 @@ func step6Commit(iteration, maxIterations int) (*ClaudeResult, error) {
 
 	prompt := getStepPrompt(6)
 
-	return executeStepWithRetry(6, "💾 Step 6: Commit...", TimeoutCommit, systemPrompt, prompt)
+	return executeStepWithRetry(6, "💾 Step Commit...", TimeoutCommit, systemPrompt, prompt)
 }
 
 // workflow1PlanAndImplement runs planning, implementation, and commit in sequence
 // Returns the result from planning step (which contains Complete flag)
 func workflow1PlanAndImplement(iteration, maxIterations int) (*ClaudeResult, error) {
-	// Step 1: Planning
+	// Planning
 	result, err := step1Planning(iteration, maxIterations)
 	if err != nil {
 		return nil, err
@@ -133,7 +133,7 @@ func workflow1PlanAndImplement(iteration, maxIterations int) (*ClaudeResult, err
 		return result, nil
 	}
 
-	// Step 2: Implementation
+	// Implementation
 	implResult, err := step2Implementation(iteration, maxIterations)
 	if err != nil {
 		return nil, err
@@ -143,7 +143,7 @@ func workflow1PlanAndImplement(iteration, maxIterations int) (*ClaudeResult, err
 		return result, nil
 	}
 
-	// Step 6: Commit
+	// Commit
 	_, err = step6Commit(iteration, maxIterations)
 	if err != nil {
 		return nil, err
@@ -154,19 +154,19 @@ func workflow1PlanAndImplement(iteration, maxIterations int) (*ClaudeResult, err
 
 // workflow2CleanupAndReview runs cleanup, refactoring, and self-improvement in sequence
 func workflow2CleanupAndReview(iteration, maxIterations int) error {
-	// Step 3: Cleanup
+	// Cleanup
 	_, err := step3Cleanup(iteration, maxIterations)
 	if err != nil {
 		return err
 	}
 
-	// Step 4: CLAUDE.md Refactoring
+	// CLAUDE.md Refactoring
 	_, err = step4AgentsRefactor(iteration, maxIterations)
 	if err != nil {
 		return err
 	}
 
-	// Step 5: Self-Improvement
+	// Self-Improvement
 	_, err = step5SelfImprovement(iteration, maxIterations)
 	if err != nil {
 		return err
