@@ -36,7 +36,7 @@ EDGE CASE HANDLING:
 - If commit fails (no changes): proceed anyway, do not ask what to do
 - If information is ambiguous: interpret reasonably and proceed`
 
-const BuiltInStep1Prompt = `@.ralph/PRD.md @.ralph/PROGRESS.md \
+const BuiltInPlanningPrompt = `@.ralph/PRD.md @.ralph/PROGRESS.md \
 1. Review all incomplete tasks in PRD and assess their complexity (easy, medium, hard). \
 2. PRIORITY: Find an incomplete task that is EASY or MEDIUM complexity. Bias towards tasks that are visiable to the user. \
 3. If no easy/medium tasks exist: \
@@ -52,7 +52,7 @@ Proceed immediately to planning - do not ask for confirmation. \
 If PRD is complete, output <promise>COMPLETE</promise>. \
 If you are blocked, output <promise>BLOCKED</promise> and explain the blocker.`
 
-const BuiltInStep2Prompt = `@.ralph/PRD.md @.ralph/PLAN.md @.ralph/PROGRESS.md @CLAUDE.md \
+const BuiltInImplementationPrompt = `@.ralph/PRD.md @.ralph/PLAN.md @.ralph/PROGRESS.md @CLAUDE.md \
 1. Pay close attention to @CLAUDE.md and follow any instructions it provides. \
 2. Implement the task completely, based on .ralph/PLAN.md. \
 3. Run tests and type checks. Fix ALL errors and warnings. \
@@ -63,7 +63,7 @@ If .ralph/PLAN.md is ambiguous, interpret it reasonably and proceed - do not ask
 Complete the implementation fully - do not ask if you should continue or what to do next. \
 If you are blocked, output <promise>BLOCKED</promise> and explain the blocker.`
 
-const BuiltInStep3Prompt = `@.ralph/PRD.md @.ralph/PLAN.md @.ralph/PROGRESS.md \
+const BuiltInCleanupPrompt = `@.ralph/PRD.md @.ralph/PLAN.md @.ralph/PROGRESS.md \
 1. Update .ralph/PRD.md with the completed task: \
    a. CRITICAL: Verify that ALL Verification Criteria for this task are met. A task CANNOT be marked complete unless ALL verification criteria checkboxes can be checked off. \
    b. If any Verification Criteria are not met, output <promise>BLOCKED</promise> and explain which criteria are missing - do NOT mark the task as complete. \
@@ -76,7 +76,7 @@ const BuiltInStep3Prompt = `@.ralph/PRD.md @.ralph/PLAN.md @.ralph/PROGRESS.md \
 5. Update @README.md with any applicable changes. Update README.md only if: 1) New features were added that users should know about, 2) Setup/installation steps changed, 3) Configuration options were added/removed. \
 If no README updates are needed, skip that step - do not ask.`
 
-const BuiltInStep4Prompt = `@CLAUDE.md \
+const BuiltInAgentsRefactorPrompt = `@CLAUDE.md \
 I want you to refactor my CLAUDE.md file to follow progressive disclosure principles.
 
 Follow these steps:
@@ -101,7 +101,7 @@ Follow these steps:
    - Too vague to be actionable
    - Overly obvious (like "write clean code")`
 
-const BuiltInStep5Prompt = `@.ralph/PRD.md @.ralph/PROGRESS.md \
+const BuiltInSelfImprovementPrompt = `@.ralph/PRD.md @.ralph/PROGRESS.md \
 Analyze the codebase for improvements, but ONLY add CRITICAL and HIGH priority issues as new tasks to .ralph/PRD.md. \
 1. Review the entire codebase for: \
    - Code smells (duplication, complexity, poor naming, magic numbers, etc.) \
@@ -141,11 +141,19 @@ Analyze the codebase for improvements, but ONLY add CRITICAL and HIGH priority i
 7. If there are no CRITICAL or HIGH priority issues to add, output 'No critical issues found' and skip updating .ralph/PRD.md. \
 Complete the analysis and update .ralph/PRD.md - do not ask for confirmation before adding items.`
 
-const BuiltInStep6Prompt = `@.ralph/PRD.md @.ralph/PROGRESS.md \
+const BuiltInCommitPrompt = `@.ralph/PRD.md @.ralph/PROGRESS.md \
 Review the changes and commit with a clear message. \
 Use format: 'feat: [brief description]' or 'fix: [brief description]' based on the changes. \
 Review git status, stage all relevant changes, and commit - do not ask for approval. \
 If there are no changes to commit, output 'No changes to commit' and proceed to next iteration.`
+
+const BuiltInGuardrailVerifyPrompt = `@GUARDRAILS.md @.ralph/PRD.md @.ralph/PLAN.md @.ralph/PROGRESS.md @CLAUDE.md \
+1. Read @GUARDRAILS.md and understand all guardrail rules. \
+2. Review the current implementation (recent changes, .ralph/PLAN.md, and PRD task context). \
+3. If the implementation violates any guardrail: apply fixes and list what was fixed. \
+4. If fully compliant with all guardrails, output <promise>COMPLIANT</promise>. \
+Do not ask for confirmation. Proceed immediately. \
+If you are blocked, output <promise>BLOCKED</promise> and explain.`
 
 const BuiltInSamplePRD = `# Product Requirements Document
 
@@ -206,16 +214,53 @@ This PRD outlines the requirements for [PROJECT NAME]. The goal is to [CLEAR DES
 - Update this section as needed during development
 `
 
+// BuiltInGuardrailsTemplate is the default content for GUARDRAILS.md when created via --init-guardrails.
+const BuiltInGuardrailsTemplate = `# Guardrails
+
+This file defines rules that the Ralph loop will verify after each implementation. When GUARDRAILS.md exists, Ralph runs a guardrail verification step before cleanup and commit.
+
+The verification step will check that the current implementation complies with these rules and fix violations when possible. Edit or remove rules to match your project.
+
+## Code style
+
+- Use the project's existing formatting (linter/formatter config). No mixed styles.
+- Follow existing naming conventions (variables, functions, types, files).
+- No magic numbers: use named constants for config, thresholds, and repeated literals.
+- Prefer simple solutions; avoid unnecessary abstraction or duplication.
+- Keep functions and files focused; refactor when they grow too large (e.g. 200–300 lines).
+
+## Security
+
+- No hardcoded secrets, API keys, or passwords. Use env vars or a secrets manager.
+- Validate and sanitize all user input and data from external sources.
+- Do not log secrets, tokens, or full credentials (mask or omit).
+- Use parameterized queries / prepared statements for database access; no raw string concatenation for SQL.
+
+## Testing
+
+- New or changed behavior must have tests (unit and/or integration as appropriate).
+- Tests must pass; fix or update tests when implementation changes.
+- No mocking of data in code paths that affect dev or prod; mocks only in tests.
+- Avoid leaving disabled or commented-out tests; remove or fix them.
+
+## Documentation and maintenance
+
+- Update README, CLAUDE.md, or docs when adding features, changing setup, or changing config.
+- Do not leave dead code, commented-out blocks, or TODO/FIXME without a ticket or follow-up.
+- Imports at top of file only; no inline imports in the middle of code.
+`
+
 // Prompt file names in .ralph directory
 const (
-	SystemPromptFile = ".ralph/system_prompt.txt"
-	Step1PromptFile  = ".ralph/step1_prompt.txt"
-	Step2PromptFile  = ".ralph/step2_prompt.txt"
-	Step3PromptFile  = ".ralph/step3_prompt.txt"
-	Step4PromptFile  = ".ralph/step4_prompt.txt"
-	Step5PromptFile  = ".ralph/step5_prompt.txt"
-	Step6PromptFile  = ".ralph/step6_prompt.txt"
-	SamplePRDFile    = ".ralph/PRD.md"
+	SystemPromptFile           = ".ralph/system_prompt.txt"
+	PlanningPromptFile         = ".ralph/planning_prompt.txt"
+	ImplementationPromptFile  = ".ralph/implementation_prompt.txt"
+	CleanupPromptFile          = ".ralph/cleanup_prompt.txt"
+	GuardrailVerifyPromptFile  = ".ralph/guardrail_verify_prompt.txt"
+	AgentsRefactorPromptFile   = ".ralph/agents_refactor_prompt.txt"
+	SelfImprovementPromptFile  = ".ralph/self_improvement_prompt.txt"
+	CommitPromptFile           = ".ralph/commit_prompt.txt"
+	SamplePRDFile              = ".ralph/PRD.md"
 )
 
 // getSystemPrompt returns the system prompt, checking .ralph directory first, then falling back to built-in
@@ -235,23 +280,23 @@ func getStepPrompt(stepNum int) string {
 
 	switch stepNum {
 	case 1:
-		filename = Step1PromptFile
-		builtInPrompt = BuiltInStep1Prompt
+		filename = PlanningPromptFile
+		builtInPrompt = BuiltInPlanningPrompt
 	case 2:
-		filename = Step2PromptFile
-		builtInPrompt = BuiltInStep2Prompt
+		filename = ImplementationPromptFile
+		builtInPrompt = BuiltInImplementationPrompt
 	case 3:
-		filename = Step3PromptFile
-		builtInPrompt = BuiltInStep3Prompt
+		filename = CleanupPromptFile
+		builtInPrompt = BuiltInCleanupPrompt
 	case 4:
-		filename = Step4PromptFile
-		builtInPrompt = BuiltInStep4Prompt
+		filename = AgentsRefactorPromptFile
+		builtInPrompt = BuiltInAgentsRefactorPrompt
 	case 5:
-		filename = Step5PromptFile
-		builtInPrompt = BuiltInStep5Prompt
+		filename = SelfImprovementPromptFile
+		builtInPrompt = BuiltInSelfImprovementPrompt
 	case 6:
-		filename = Step6PromptFile
-		builtInPrompt = BuiltInStep6Prompt
+		filename = CommitPromptFile
+		builtInPrompt = BuiltInCommitPrompt
 	default:
 		return builtInPrompt
 	}
@@ -262,6 +307,15 @@ func getStepPrompt(stepNum int) string {
 	}
 	// Fall back to built-in prompt
 	return builtInPrompt
+}
+
+// getGuardrailVerifyPrompt returns the guardrail verification prompt, checking .ralph directory first, then falling back to built-in.
+func getGuardrailVerifyPrompt() string {
+	content, err := readFileContent(GuardrailVerifyPromptFile)
+	if err == nil {
+		return content
+	}
+	return BuiltInGuardrailVerifyPrompt
 }
 
 // exportPrompts writes all built-in prompts to the .ralph directory
@@ -278,12 +332,13 @@ func exportPrompts() error {
 
 	// Export step prompts
 	stepPrompts := map[string]string{
-		Step1PromptFile: BuiltInStep1Prompt,
-		Step2PromptFile: BuiltInStep2Prompt,
-		Step3PromptFile: BuiltInStep3Prompt,
-		Step4PromptFile: BuiltInStep4Prompt,
-		Step5PromptFile: BuiltInStep5Prompt,
-		Step6PromptFile: BuiltInStep6Prompt,
+		PlanningPromptFile:        BuiltInPlanningPrompt,
+		ImplementationPromptFile:  BuiltInImplementationPrompt,
+		CleanupPromptFile:         BuiltInCleanupPrompt,
+		GuardrailVerifyPromptFile: BuiltInGuardrailVerifyPrompt,
+		AgentsRefactorPromptFile:  BuiltInAgentsRefactorPrompt,
+		SelfImprovementPromptFile: BuiltInSelfImprovementPrompt,
+		CommitPromptFile:          BuiltInCommitPrompt,
 	}
 
 	for filename, prompt := range stepPrompts {
@@ -370,4 +425,9 @@ func initProject(description string) error {
 	fmt.Println("3. Optional: Run: ./ralph --export-prompts to customize prompts")
 
 	return nil
+}
+
+// initGuardrails creates GUARDRAILS.md by having Claude analyze the project and generate tailored guardrails.
+func initGuardrails() error {
+	return createGuardrailsWithClaude()
 }

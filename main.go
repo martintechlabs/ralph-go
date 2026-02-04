@@ -13,6 +13,7 @@ func printHelp() {
 	fmt.Printf("  %s <iterations>\n", os.Args[0])
 	fmt.Printf("  %s --export-prompts\n", os.Args[0])
 	fmt.Printf("  %s --init [description]\n", os.Args[0])
+	fmt.Printf("  %s --init-guardrails\n", os.Args[0])
 	fmt.Printf("  %s --manager <config-file> <iterations>\n", os.Args[0])
 	fmt.Printf("  %s --tickets <config-file>\n", os.Args[0])
 	fmt.Printf("  %s --help\n", os.Args[0])
@@ -25,6 +26,7 @@ func printHelp() {
 	fmt.Println("  --export-prompts  Export all built-in prompts to .ralph directory for customization")
 	fmt.Println("  --init            Create minimum files needed to get started (.ralph/PRD.md)")
 	fmt.Println("                    If description is provided, interactively creates a PRD using Claude")
+	fmt.Println("  --init-guardrails Analyze the project and use Claude to generate a tailored GUARDRAILS.md")
 	fmt.Println("  --manager         Linear manager mode: automatically process tickets from Linear")
 	fmt.Println("                    Requires config-file (TOML) and iterations parameter")
 	fmt.Println("  --tickets         List all pending tickets from Linear (for testing connectivity)")
@@ -48,6 +50,9 @@ func printHelp() {
 	fmt.Println("Required Files:")
 	fmt.Println("  - .ralph/PRD.md")
 	fmt.Println()
+	fmt.Println("Optional Files:")
+	fmt.Println("  - GUARDRAILS.md   When present at project root, Ralph verifies implementations against it after each implementation step. Use --init-guardrails to generate one from the project.")
+	fmt.Println()
 	fmt.Println("Prompt Customization:")
 	fmt.Println("  Use --export-prompts to export built-in prompts to .ralph directory.")
 	fmt.Println("  Customize prompts by editing files in .ralph/")
@@ -55,7 +60,7 @@ func printHelp() {
 
 func main() {
 	if len(os.Args) < 2 {
-		fmt.Fprintf(os.Stderr, "Usage: %s <iterations> or %s --export-prompts or %s --init [description] or %s --manager <config-file> <iterations> or %s --tickets <config-file>\n", os.Args[0], os.Args[0], os.Args[0], os.Args[0], os.Args[0])
+		fmt.Fprintf(os.Stderr, "Usage: %s <iterations> or %s --export-prompts or %s --init [description] or %s --init-guardrails or %s --manager <config-file> <iterations> or %s --tickets <config-file>\n", os.Args[0], os.Args[0], os.Args[0], os.Args[0], os.Args[0], os.Args[0])
 		fmt.Fprintf(os.Stderr, "Use --help or -h for more information, or --version/-v for version\n")
 		os.Exit(1)
 	}
@@ -91,6 +96,15 @@ func main() {
 		}
 		if err := initProject(description); err != nil {
 			fmt.Fprintf(os.Stderr, "❌ Error initializing project: %v\n", err)
+			os.Exit(1)
+		}
+		os.Exit(0)
+	}
+
+	// Check for init-guardrails flag
+	if os.Args[1] == "--init-guardrails" {
+		if err := initGuardrails(); err != nil {
+			fmt.Fprintf(os.Stderr, "❌ Error: %v\n", err)
 			os.Exit(1)
 		}
 		os.Exit(0)

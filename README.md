@@ -66,14 +66,17 @@ You can export and customize the built-in prompts:
 
 This creates the following files in `.ralph/`:
 - `system_prompt.txt` - Overall behavior and decision-making rules
-- `step1_prompt.txt` - Planning step instructions
-- `step2_prompt.txt` - Implementation step instructions
-- `step3_prompt.txt` - Cleanup step instructions
-- `step4_prompt.txt` - CLAUDE.md refactoring instructions
-- `step5_prompt.txt` - Self-improvement analysis instructions
-- `step6_prompt.txt` - Commit step instructions
+- `planning_prompt.txt` - Planning prompt
+- `implementation_prompt.txt` - Implementation prompt
+- `cleanup_prompt.txt` - Cleanup prompt
+- `agents_refactor_prompt.txt` - Agents refactor (CLAUDE.md) prompt
+- `self_improvement_prompt.txt` - Self-improvement prompt
+- `commit_prompt.txt` - Commit prompt
+- `guardrail_verify_prompt.txt` - Guardrail verification prompt (used when GUARDRAILS.md exists)
 
 If a `.ralph` directory doesn't exist or specific files are missing, the executable will use its built-in defaults.
+
+**GUARDRAILS.md** (optional, project root): When present, Ralph runs a guardrail verification step after each implementation and before cleanup. Use `./ralph --init-guardrails` to create a template.
 
 ## Usage
 
@@ -111,6 +114,14 @@ The `--init` command creates the minimum files needed to get started (`.ralph/PR
 ```
 
 After exporting, you can edit the prompt files in `.ralph/` to customize Ralph's behavior.
+
+### Initialize Guardrails
+
+```bash
+./ralph --init-guardrails
+```
+
+Analyzes the current project (README, CLAUDE.md, go.mod, package.json, etc.) and uses Claude to generate a tailored `GUARDRAILS.md` in the project root. If the file already exists, the command does nothing. When GUARDRAILS.md is present, Ralph verifies each implementation against the guardrails before cleanup and commit. Edit the generated file to refine rules.
 
 ### Getting Help
 

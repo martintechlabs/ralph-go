@@ -53,7 +53,7 @@ func executeStepWithRetry(stepNum int, stepName string, timeout int, systemPromp
 	return nil, fmt.Errorf("%s failed after %d attempts", stepName, MaxRetries)
 }
 
-func step1Planning(iteration, maxIterations int) (*ClaudeResult, error) {
+func planning(iteration, maxIterations int) (*ClaudeResult, error) {
 	systemPrompt, err := getSystemPrompt()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get system prompt: %v", err)
@@ -61,10 +61,10 @@ func step1Planning(iteration, maxIterations int) (*ClaudeResult, error) {
 
 	prompt := getStepPrompt(1)
 
-	return executeStepWithRetry(1, "📋 Step Planning...", TimeoutPlanning, systemPrompt, prompt)
+	return executeStepWithRetry(1, "📋 Planning...", TimeoutPlanning, systemPrompt, prompt)
 }
 
-func step2Implementation(iteration, maxIterations int) (*ClaudeResult, error) {
+func implementation(iteration, maxIterations int) (*ClaudeResult, error) {
 	systemPrompt, err := getSystemPrompt()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get system prompt: %v", err)
@@ -72,10 +72,10 @@ func step2Implementation(iteration, maxIterations int) (*ClaudeResult, error) {
 
 	prompt := getStepPrompt(2)
 
-	return executeStepWithRetry(2, "🔨 Step Implementation and Validation...", TimeoutImplementation, systemPrompt, prompt)
+	return executeStepWithRetry(2, "🔨 Implementation and Validation...", TimeoutImplementation, systemPrompt, prompt)
 }
 
-func step3Cleanup(iteration, maxIterations int) (*ClaudeResult, error) {
+func cleanup(iteration, maxIterations int) (*ClaudeResult, error) {
 	systemPrompt, err := getSystemPrompt()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get system prompt: %v", err)
@@ -83,10 +83,10 @@ func step3Cleanup(iteration, maxIterations int) (*ClaudeResult, error) {
 
 	prompt := getStepPrompt(3)
 
-	return executeStepWithRetry(3, "🧹 Step Cleanup and Documentation...", TimeoutCleanup, systemPrompt, prompt)
+	return executeStepWithRetry(3, "🧹 Cleanup and Documentation...", TimeoutCleanup, systemPrompt, prompt)
 }
 
-func step4AgentsRefactor(iteration, maxIterations int) (*ClaudeResult, error) {
+func agentsRefactor(iteration, maxIterations int) (*ClaudeResult, error) {
 	systemPrompt, err := getSystemPrompt()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get system prompt: %v", err)
@@ -94,10 +94,10 @@ func step4AgentsRefactor(iteration, maxIterations int) (*ClaudeResult, error) {
 
 	prompt := getStepPrompt(4)
 
-	return executeStepWithRetry(4, "📝 Step CLAUDE.md Refactoring...", TimeoutCleanup, systemPrompt, prompt)
+	return executeStepWithRetry(4, "📝 Agents Refactor (CLAUDE.md)...", TimeoutCleanup, systemPrompt, prompt)
 }
 
-func step5SelfImprovement(iteration, maxIterations int) (*ClaudeResult, error) {
+func selfImprovement(iteration, maxIterations int) (*ClaudeResult, error) {
 	systemPrompt, err := getSystemPrompt()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get system prompt: %v", err)
@@ -105,10 +105,10 @@ func step5SelfImprovement(iteration, maxIterations int) (*ClaudeResult, error) {
 
 	prompt := getStepPrompt(5)
 
-	return executeStepWithRetry(5, fmt.Sprintf("🔍 Step Self-Improvement Analysis (iteration %d)...", iteration), TimeoutSelfImprovement, systemPrompt, prompt)
+	return executeStepWithRetry(5, fmt.Sprintf("🔍 Self-Improvement (iteration %d)...", iteration), TimeoutSelfImprovement, systemPrompt, prompt)
 }
 
-func step6Commit(iteration, maxIterations int) (*ClaudeResult, error) {
+func commit(iteration, maxIterations int) (*ClaudeResult, error) {
 	systemPrompt, err := getSystemPrompt()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get system prompt: %v", err)
@@ -116,14 +116,25 @@ func step6Commit(iteration, maxIterations int) (*ClaudeResult, error) {
 
 	prompt := getStepPrompt(6)
 
-	return executeStepWithRetry(6, "💾 Step Commit...", TimeoutCommit, systemPrompt, prompt)
+	return executeStepWithRetry(6, "💾 Commit...", TimeoutCommit, systemPrompt, prompt)
+}
+
+func guardrailVerify(iteration, maxIterations int) (*ClaudeResult, error) {
+	systemPrompt, err := getSystemPrompt()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get system prompt: %v", err)
+	}
+
+	prompt := getGuardrailVerifyPrompt()
+
+	return executeStepWithRetry(0, "🛡️ Guardrail verification...", TimeoutGuardrail, systemPrompt, prompt)
 }
 
 // workflow1PlanAndImplement runs planning, implementation, and commit in sequence
 // Returns the result from planning step (which contains Complete flag)
 func workflow1PlanAndImplement(iteration, maxIterations int) (*ClaudeResult, error) {
 	// Planning
-	result, err := step1Planning(iteration, maxIterations)
+	result, err := planning(iteration, maxIterations)
 	if err != nil {
 		return nil, err
 	}
@@ -134,7 +145,7 @@ func workflow1PlanAndImplement(iteration, maxIterations int) (*ClaudeResult, err
 	}
 
 	// Implementation
-	implResult, err := step2Implementation(iteration, maxIterations)
+	implResult, err := implementation(iteration, maxIterations)
 	if err != nil {
 		return nil, err
 	}
@@ -143,8 +154,22 @@ func workflow1PlanAndImplement(iteration, maxIterations int) (*ClaudeResult, err
 		return result, nil
 	}
 
-	// Commit
-	_, err = step6Commit(iteration, maxIterations)
+	// Guardrail verification (if GUARDRAILS.md exists)
+	if guardrailsExists() {
+		_, err = guardrailVerify(iteration, maxIterations)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	// Cleanup (remove PLAN.md, update PROGRESS/CLAUDE/README)
+	_, err = cleanup(iteration, maxIterations)
+	if err != nil {
+		return nil, err
+	}
+
+	// Commit (update PRD task complete, then stage and commit)
+	_, err = commit(iteration, maxIterations)
 	if err != nil {
 		return nil, err
 	}
@@ -152,22 +177,16 @@ func workflow1PlanAndImplement(iteration, maxIterations int) (*ClaudeResult, err
 	return result, nil
 }
 
-// workflow2CleanupAndReview runs cleanup, refactoring, and self-improvement in sequence
+// workflow2CleanupAndReview runs refactoring and self-improvement in sequence
 func workflow2CleanupAndReview(iteration, maxIterations int) error {
-	// Cleanup
-	_, err := step3Cleanup(iteration, maxIterations)
-	if err != nil {
-		return err
-	}
-
 	// CLAUDE.md Refactoring
-	_, err = step4AgentsRefactor(iteration, maxIterations)
+	_, err := agentsRefactor(iteration, maxIterations)
 	if err != nil {
 		return err
 	}
 
 	// Self-Improvement
-	_, err = step5SelfImprovement(iteration, maxIterations)
+	_, err = selfImprovement(iteration, maxIterations)
 	if err != nil {
 		return err
 	}
