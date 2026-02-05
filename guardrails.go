@@ -18,21 +18,21 @@ CRITICAL RULES:
 - Generate a complete GUARDRAILS.md tailored to this project
 - Output ONLY the raw GUARDRAILS.md content—no explanation before or after
 
-GUARDRAILS.md is used by Ralph to verify each implementation step. Rules should be concrete and project-appropriate (code style, security, testing, documentation/maintenance). Include specific, actionable rules—not placeholders.`
+GUARDRAILS.md is used by Ralph to verify PRD tasks and the plans that implement them (and that the resulting work complies). It is NOT for code-style or lint checks. Rules should be concrete constraints that tasks and plans must not violate (e.g. no tasks requiring hardcoded secrets, no prod mocks, clear verification criteria, security/constraint rules). Include specific, actionable rules—not placeholders.`
 
 const GuardrailsCreationUserPrompt = `
 Review the attached project files to understand this application (language, framework, conventions, testing approach, and security considerations).
 
-Generate a complete GUARDRAILS.md file with sections such as:
-- **Code style** – formatting, naming, no magic numbers, simplicity, file/function size
-- **Security** – no hardcoded secrets, input validation, logging, database access
-- **Testing** – coverage expectations, mocks only in tests, no disabled tests
-- **Documentation and maintenance** – when to update README/docs, no dead code, imports at top
+Generate a complete GUARDRAILS.md file focused on verifying PRD tasks and plans. Use sections such as:
+- **Requirements and tasks** – e.g. tasks must have clear verification criteria; no tasks may require hardcoded secrets, prod mocks, or bypassing env/config; constraints that plans must respect (e.g. no single function over 300 lines if that is a project rule)
+- **Security and constraints** – what tasks and plans must not propose (e.g. no raw SQL in task scope, input validation required, no logging of secrets)
+- **Testing** – e.g. no mocking of data in dev/prod code paths; mocks only in tests; coverage expectations as a constraint for what plans must include
+- **Documentation and maintenance** – when PRD/docs must be updated (e.g. when adding features or changing setup)
 
-Adapt the rules to this project. For example: Go projects (go.mod) may mention go vet, gofmt, table-driven tests; Python may mention type hints, pytest, no bare except; Node may mention ESLint, Jest.
+De-emphasize pure code-style (e.g. "run gofmt"). Frame rules as constraints that PRD tasks and implementation plans must not violate. Adapt to the project: Go may mention parameterized queries, env for config; Python may mention no bare except, type hints where they affect contracts; etc.
 
 OUTPUT REQUIREMENTS:
-- Start your response directly with "# Guardrails" (with a short intro paragraph explaining the file).
+- Start your response directly with "# Guardrails" (with a short intro paragraph explaining that guardrails verify PRD tasks and plans, not code style).
 - End with the last line of the document. No trailing explanation.
 - Output ONLY the markdown content—nothing else.`
 
@@ -72,7 +72,7 @@ func createGuardrailsWithClaude() error {
 	}
 
 	fmt.Printf("✅ Created %s\n", GuardrailsFile)
-	fmt.Println("Edit GUARDRAILS.md to refine rules. When present, Ralph verifies implementations against it after each implementation step.")
+	fmt.Println("Edit GUARDRAILS.md to refine rules. When present, Ralph verifies the plan and PRD/outcome compliance against it (before and after each implementation step).")
 	return nil
 }
 

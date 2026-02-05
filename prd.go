@@ -117,6 +117,32 @@ CRITICAL OUTPUT REQUIREMENTS:
 - End your response with the closing of the PRD (after the Notes section)
 - The entire output should be the PRD markdown and nothing else`
 
+const PRDSimplificationSystemPrompt = `You are a product manager simplifying a PRD for the Ralph Wiggum autonomous development loop.
+
+AUTONOMOUS MODE: You are operating in fully autonomous mode. DO NOT ask questions. Output only the PRD markdown.
+
+Your goal is to simplify the provided PRD so that:
+1. Every task has complexity **easy** or **medium** only (reclassify or split any "hard" tasks).
+2. Each task should be doable in **15-20 minutes**. If a task would take longer, split it into multiple smaller tasks.
+3. Keep verification criteria, logical ordering, and dependencies intact.
+4. Preserve the exact PRD format: same headers, task structure with "**Description:**", "**Verification Criteria:**", "**Complexity:**", "---" separators between tasks.
+
+CRITICAL OUTPUT REQUIREMENTS:
+- Output ONLY the PRD markdown content - nothing else
+- Start your response directly with "# Product Requirements Document"
+- End your response with the closing of the PRD (after the Notes section)
+- Do NOT include any explanatory text before or after the PRD`
+
+const PRDSimplificationUserPromptTemplate = `Simplify the following PRD according to the rules you were given. Output only the simplified PRD markdown.
+%s
+
+--- PRD to simplify ---
+
+%s`
+
+const PRDSimplificationPreserveCompletedInstruction = `
+CRITICAL - PRESERVE COMPLETED ITEMS: This PRD has already been partially completed. Do NOT modify any task or verification criterion that is already marked complete (checkbox with "- [x]"). Keep their wording and structure exactly as written. Only simplify, split, or reclassify INCOMPLETE tasks (those with "- [ ]"). Preserve every checkbox state ([x] vs [ ]) in your output.`
+
 // createPRD orchestrates the PRD creation process
 func createPRD(description string) error {
 	// Check if PRD already exists
@@ -136,6 +162,14 @@ func createPRD(description string) error {
 	prdContent, err := prdDiscoveryFlow(description)
 	if err != nil {
 		return fmt.Errorf("PRD discovery flow failed: %v", err)
+	}
+
+	// Simplification pass: easy/medium tasks, 15-20 min each
+	fmt.Println("Simplifying PRD (easy/medium tasks, 15-20 min each)...")
+	if simplified, err := prdSimplificationFlow(prdContent, false); err == nil && simplified != "" {
+		prdContent = simplified
+	} else if err != nil {
+		fmt.Printf("⚠️  Simplification skipped: %v\n", err)
 	}
 
 	// Write the PRD to file
@@ -191,6 +225,59 @@ func prdDiscoveryFlow(description string) (string, error) {
 	}
 
 	return prdContent, nil
+}
+
+// prdSimplificationFlow runs a simplification pass on PRD content (easy/medium only, 15-20 min per task).
+// When preserveCompleted is true, completed tasks and criteria (- [x]) must be left unchanged.
+func prdSimplificationFlow(prdContent string, preserveCompleted bool) (string, error) {
+	preserveInstruction := ""
+	if preserveCompleted {
+		preserveInstruction = PRDSimplificationPreserveCompletedInstruction
+	}
+	userPrompt := fmt.Sprintf(PRDSimplificationUserPromptTemplate, preserveInstruction, prdContent)
+
+	result, err := runClaude(TimeoutPRDSimplification, PRDSimplificationSystemPrompt, userPrompt)
+	if err != nil {
+		return "", fmt.Errorf("PRD simplification failed: %w", err)
+	}
+	if !result.Success {
+		return "", fmt.Errorf("PRD simplification failed: %s", result.Output)
+	}
+
+	simplified := extractPRDFromOutput(result.Output)
+	if simplified == "" {
+		return "", fmt.Errorf("failed to extract simplified PRD from output (length %d chars)", len(result.Output))
+	}
+	return simplified, nil
+}
+
+// reprocessPRD reads the existing .ralph/PRD.md, runs simplification (preserving completed items), and writes back.
+func reprocessPRD() error {
+	prdContent, err := readFileContent(SamplePRDFile)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return fmt.Errorf("no PRD found at %s", SamplePRDFile)
+		}
+		return fmt.Errorf("failed to read PRD: %w", err)
+	}
+
+	fmt.Println("Simplifying PRD (easy/medium tasks, 15-20 min each; completed tasks left unchanged)...")
+	simplified, err := prdSimplificationFlow(prdContent, true)
+	if err != nil {
+		return err
+	}
+	if simplified == "" {
+		return fmt.Errorf("simplification produced empty output")
+	}
+
+	if err := writeFileContent(SamplePRDFile, simplified); err != nil {
+		return fmt.Errorf("failed to write PRD: %w", err)
+	}
+
+	fmt.Println()
+	fmt.Println("✅ PRD simplified. Completed tasks were left unchanged.")
+	fmt.Printf("   - %s\n", SamplePRDFile)
+	return nil
 }
 
 // maxDebugOutputChars is the max raw output to print when extraction fails (avoid flooding terminal).

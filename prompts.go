@@ -36,7 +36,7 @@ EDGE CASE HANDLING:
 - If commit fails (no changes): proceed anyway, do not ask what to do
 - If information is ambiguous: interpret reasonably and proceed`
 
-const BuiltInPlanningPrompt = `@.ralph/PRD.md @.ralph/PROGRESS.md \
+const BuiltInPlanningPrompt = `@.ralph/PRD.md @.ralph/PROGRESS.md @GUARDRAILS.md \
 1. Review all incomplete tasks in PRD and assess their complexity (easy, medium, hard). \
 2. PRIORITY: Find an incomplete task that is EASY or MEDIUM complexity. Bias towards tasks that are visiable to the user. \
 3. If no easy/medium tasks exist: \
@@ -45,7 +45,8 @@ const BuiltInPlanningPrompt = `@.ralph/PRD.md @.ralph/PROGRESS.md \
    c. Update .ralph/PRD.md by replacing the original task with the subtasks (maintain the same checkbox format) \
    d. Select ONE of the newly created subtasks to work on \
 4. Create a detailed plan for the selected task. Make sure to include vitests, detailed task breakdown and acceptance criteria. \
-5. Write the plan to .ralph/PLAN.md. \
+5. If @GUARDRAILS.md exists, ensure your plan complies with it (do not propose steps that violate those rules). \
+6. Write the plan to .ralph/PLAN.md. \
 ONLY WORK ON ONE TASK. \
 DO NOT ask which task to work on - select one autonomously using the decision-making framework. \
 Proceed immediately to planning - do not ask for confirmation. \
@@ -148,12 +149,20 @@ Review git status, stage all relevant changes, and commit - do not ask for appro
 If there are no changes to commit, output 'No changes to commit' and proceed to next iteration.`
 
 const BuiltInGuardrailVerifyPrompt = `@GUARDRAILS.md @.ralph/PRD.md @.ralph/PLAN.md @.ralph/PROGRESS.md @CLAUDE.md \
-1. Read @GUARDRAILS.md and understand all guardrail rules. \
-2. Review the current implementation (recent changes, .ralph/PLAN.md, and PRD task context). \
-3. If the implementation violates any guardrail: apply fixes and list what was fixed. \
+1. Read @GUARDRAILS.md and understand all guardrail rules (they verify PRD tasks, plans, and outcome compliance—not code style). \
+2. Verify that the completed work and the way the PRD task and plan specified it comply with the guardrails. \
+3. If any guardrail rule is violated (e.g. hardcoded secret, missing verification criterion, prod mocks): apply fixes and list what was fixed. Do not perform a general code-style or lint review. \
 4. If fully compliant with all guardrails, output <promise>COMPLIANT</promise>. \
 Do not ask for confirmation. Proceed immediately. \
 If you are blocked, output <promise>BLOCKED</promise> and explain.`
+
+const BuiltInPlanGuardrailVerifyPrompt = `@GUARDRAILS.md @.ralph/PLAN.md @.ralph/PRD.md @.ralph/PROGRESS.md \
+1. Read @GUARDRAILS.md and understand all guardrail rules (they verify PRD tasks and plans, not code style). \
+2. Review the plan in .ralph/PLAN.md (not the implementation). Determine if any planned steps would violate any guardrail. \
+3. If violations exist: revise .ralph/PLAN.md to comply, then list what was fixed. \
+4. If compliant (or after fixing), output <promise>COMPLIANT</promise>. \
+5. If the plan cannot be made compliant without changing the PRD task, output <promise>BLOCKED</promise> and explain. \
+Do not ask for confirmation. Proceed immediately.`
 
 const BuiltInSamplePRD = `# Product Requirements Document
 
@@ -217,50 +226,45 @@ This PRD outlines the requirements for [PROJECT NAME]. The goal is to [CLEAR DES
 // BuiltInGuardrailsTemplate is the default content for GUARDRAILS.md when created via --init-guardrails.
 const BuiltInGuardrailsTemplate = `# Guardrails
 
-This file defines rules that the Ralph loop will verify after each implementation. When GUARDRAILS.md exists, Ralph runs a guardrail verification step before cleanup and commit.
+This file defines rules that the Ralph loop uses to verify PRD tasks and the plans that implement them (and that the resulting work complies). Guardrails are not for code-style or lint checks. When GUARDRAILS.md exists, Ralph verifies the plan before implementation and PRD/outcome compliance after implementation. Edit or remove rules to match your project.
 
-The verification step will check that the current implementation complies with these rules and fix violations when possible. Edit or remove rules to match your project.
+## Requirements and tasks
 
-## Code style
+- PRD tasks must have clear, measurable verification criteria.
+- No task or plan may require hardcoded secrets, API keys, or passwords; use env vars or a secrets manager.
+- No task or plan may require mocking or fake data in dev or prod code paths; mocks only in tests.
+- Plans must not propose steps that violate project constraints (e.g. single function over 300 lines if that is a project rule).
 
-- Use the project's existing formatting (linter/formatter config). No mixed styles.
-- Follow existing naming conventions (variables, functions, types, files).
-- No magic numbers: use named constants for config, thresholds, and repeated literals.
-- Prefer simple solutions; avoid unnecessary abstraction or duplication.
-- Keep functions and files focused; refactor when they grow too large (e.g. 200–300 lines).
+## Security and constraints
 
-## Security
-
-- No hardcoded secrets, API keys, or passwords. Use env vars or a secrets manager.
-- Validate and sanitize all user input and data from external sources.
+- Tasks and plans must not propose hardcoded secrets, raw SQL string concatenation, or logging of credentials.
+- Input validation and parameterized queries (or prepared statements) must be in scope where applicable.
 - Do not log secrets, tokens, or full credentials (mask or omit).
-- Use parameterized queries / prepared statements for database access; no raw string concatenation for SQL.
 
 ## Testing
 
-- New or changed behavior must have tests (unit and/or integration as appropriate).
-- Tests must pass; fix or update tests when implementation changes.
+- New or changed behavior must have tests (unit and/or integration as appropriate); plans must include test coverage.
 - No mocking of data in code paths that affect dev or prod; mocks only in tests.
-- Avoid leaving disabled or commented-out tests; remove or fix them.
+- Tests must pass; fix or update tests when implementation changes.
 
 ## Documentation and maintenance
 
 - Update README, CLAUDE.md, or docs when adding features, changing setup, or changing config.
-- Do not leave dead code, commented-out blocks, or TODO/FIXME without a ticket or follow-up.
-- Imports at top of file only; no inline imports in the middle of code.
+- Do not leave dead code or commented-out blocks without a ticket or follow-up.
 `
 
 // Prompt file names in .ralph directory
 const (
-	SystemPromptFile           = ".ralph/system_prompt.txt"
-	PlanningPromptFile         = ".ralph/planning_prompt.txt"
-	ImplementationPromptFile  = ".ralph/implementation_prompt.txt"
-	CleanupPromptFile          = ".ralph/cleanup_prompt.txt"
-	GuardrailVerifyPromptFile  = ".ralph/guardrail_verify_prompt.txt"
-	AgentsRefactorPromptFile   = ".ralph/agents_refactor_prompt.txt"
-	SelfImprovementPromptFile  = ".ralph/self_improvement_prompt.txt"
-	CommitPromptFile           = ".ralph/commit_prompt.txt"
-	SamplePRDFile              = ".ralph/PRD.md"
+	SystemPromptFile             = ".ralph/system_prompt.txt"
+	PlanningPromptFile           = ".ralph/planning_prompt.txt"
+	ImplementationPromptFile     = ".ralph/implementation_prompt.txt"
+	CleanupPromptFile           = ".ralph/cleanup_prompt.txt"
+	GuardrailVerifyPromptFile    = ".ralph/guardrail_verify_prompt.txt"
+	PlanGuardrailVerifyPromptFile = ".ralph/plan_guardrail_verify_prompt.txt"
+	AgentsRefactorPromptFile     = ".ralph/agents_refactor_prompt.txt"
+	SelfImprovementPromptFile    = ".ralph/self_improvement_prompt.txt"
+	CommitPromptFile             = ".ralph/commit_prompt.txt"
+	SamplePRDFile                = ".ralph/PRD.md"
 )
 
 // getSystemPrompt returns the system prompt, checking .ralph directory first, then falling back to built-in
@@ -318,6 +322,15 @@ func getGuardrailVerifyPrompt() string {
 	return BuiltInGuardrailVerifyPrompt
 }
 
+// getPlanGuardrailVerifyPrompt returns the plan guardrail verification prompt, checking .ralph directory first, then falling back to built-in.
+func getPlanGuardrailVerifyPrompt() string {
+	content, err := readFileContent(PlanGuardrailVerifyPromptFile)
+	if err == nil {
+		return content
+	}
+	return BuiltInPlanGuardrailVerifyPrompt
+}
+
 // exportPrompts writes all built-in prompts to the .ralph directory
 func exportPrompts() error {
 	// Ensure .ralph directory exists
@@ -332,13 +345,14 @@ func exportPrompts() error {
 
 	// Export step prompts
 	stepPrompts := map[string]string{
-		PlanningPromptFile:        BuiltInPlanningPrompt,
-		ImplementationPromptFile:  BuiltInImplementationPrompt,
-		CleanupPromptFile:         BuiltInCleanupPrompt,
-		GuardrailVerifyPromptFile: BuiltInGuardrailVerifyPrompt,
-		AgentsRefactorPromptFile:  BuiltInAgentsRefactorPrompt,
-		SelfImprovementPromptFile: BuiltInSelfImprovementPrompt,
-		CommitPromptFile:          BuiltInCommitPrompt,
+		PlanningPromptFile:           BuiltInPlanningPrompt,
+		ImplementationPromptFile:     BuiltInImplementationPrompt,
+		CleanupPromptFile:            BuiltInCleanupPrompt,
+		GuardrailVerifyPromptFile:    BuiltInGuardrailVerifyPrompt,
+		PlanGuardrailVerifyPromptFile: BuiltInPlanGuardrailVerifyPrompt,
+		AgentsRefactorPromptFile:     BuiltInAgentsRefactorPrompt,
+		SelfImprovementPromptFile:    BuiltInSelfImprovementPrompt,
+		CommitPromptFile:             BuiltInCommitPrompt,
 	}
 
 	for filename, prompt := range stepPrompts {

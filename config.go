@@ -3,7 +3,7 @@ package main
 import "os"
 
 // Version is the application version
-const Version = "0.4.1"
+const Version = "0.4.2"
 
 // Timeout configuration (in seconds)
 const (
@@ -14,11 +14,14 @@ const (
 	TimeoutSelfImprovement = 1800 // 30 minutes for self-improvement analysis
 	TimeoutCommit          = 300  // 5 minutes for commit
 	TimeoutPRDCreation     = 1800 // 30 minutes for PRD creation
+	TimeoutPRDSimplification = 900 // 15 minutes for PRD simplification pass
 )
 
 const (
-	MaxRetries        = 3
-	StateFile         = ".ralph/ralph-state.txt"
+	MaxRetries               = 3
+	TimeoutSnippetMaxLines   = 12
+	TimeoutSnippetMaxChars   = 800
+	StateFile                = ".ralph/ralph-state.txt"
 	ManagerStateFile  = ".ralph/manager-state.txt"
 	LinearAPIEndpoint = "https://api.linear.app/graphql"
 )

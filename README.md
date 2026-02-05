@@ -73,10 +73,11 @@ This creates the following files in `.ralph/`:
 - `self_improvement_prompt.txt` - Self-improvement prompt
 - `commit_prompt.txt` - Commit prompt
 - `guardrail_verify_prompt.txt` - Guardrail verification prompt (used when GUARDRAILS.md exists)
+- `plan_guardrail_verify_prompt.txt` - Plan guardrail verification prompt (used when GUARDRAILS.md exists)
 
 If a `.ralph` directory doesn't exist or specific files are missing, the executable will use its built-in defaults.
 
-**GUARDRAILS.md** (optional, project root): When present, Ralph runs a guardrail verification step after each implementation and before cleanup. Use `./ralph --init-guardrails` to create a template.
+**GUARDRAILS.md** (optional, project root): Guardrails verify that PRD tasks and plans (and the resulting work) comply with project rules—they are not for code-style or lint checks. When present, Ralph (1) verifies the **plan** against guardrails after planning and before implementation, and (2) verifies **PRD/plan/outcome compliance** after implementation and before cleanup/commit. Use `./ralph --init-guardrails` to create a template.
 
 ## Usage
 
@@ -104,7 +105,7 @@ Use standalone mode when you have a PRD file and want to work on tasks locally:
 ./ralph --init "Build a todo app with user authentication"
 ```
 
-The `--init` command creates the minimum files needed to get started (`.ralph/PRD.md`). If you provide a description, Ralph will use Claude to generate a comprehensive PRD based on your project description.
+The `--init` command creates the minimum files needed to get started (`.ralph/PRD.md`). If you provide a description, Ralph will use Claude to generate a comprehensive PRD based on your project description, then simplify it so tasks are easy or medium and aimed at 15–20 minutes each.
 
 ### Export Prompts for Customization
 
@@ -121,7 +122,15 @@ After exporting, you can edit the prompt files in `.ralph/` to customize Ralph's
 ./ralph --init-guardrails
 ```
 
-Analyzes the current project (README, CLAUDE.md, go.mod, package.json, etc.) and uses Claude to generate a tailored `GUARDRAILS.md` in the project root. If the file already exists, the command does nothing. When GUARDRAILS.md is present, Ralph verifies each implementation against the guardrails before cleanup and commit. Edit the generated file to refine rules.
+Analyzes the current project (README, CLAUDE.md, go.mod, package.json, etc.) and uses Claude to generate a tailored `GUARDRAILS.md` in the project root. The generated guardrails are PRD/plan-focused (constraints that tasks and plans must not violate, e.g. no hardcoded secrets, no prod mocks). If the file already exists, the command does nothing. When GUARDRAILS.md is present, Ralph verifies the plan before implementation and PRD/outcome compliance after implementation. Edit the generated file to refine rules.
+
+### Simplify PRD
+
+```bash
+./ralph --simplify-prd
+```
+
+Reprocesses `.ralph/PRD.md` with the same simplification rules (easy/medium tasks, 15–20 min each). Completed tasks and their verification criteria are left unchanged; only incomplete tasks are simplified or split.
 
 ### Getting Help
 

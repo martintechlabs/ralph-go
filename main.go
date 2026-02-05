@@ -14,6 +14,7 @@ func printHelp() {
 	fmt.Printf("  %s --export-prompts\n", os.Args[0])
 	fmt.Printf("  %s --init [description]\n", os.Args[0])
 	fmt.Printf("  %s --init-guardrails\n", os.Args[0])
+	fmt.Printf("  %s --simplify-prd\n", os.Args[0])
 	fmt.Printf("  %s --manager <config-file> <iterations>\n", os.Args[0])
 	fmt.Printf("  %s --tickets <config-file>\n", os.Args[0])
 	fmt.Printf("  %s --help\n", os.Args[0])
@@ -27,6 +28,7 @@ func printHelp() {
 	fmt.Println("  --init            Create minimum files needed to get started (.ralph/PRD.md)")
 	fmt.Println("                    If description is provided, interactively creates a PRD using Claude")
 	fmt.Println("  --init-guardrails Analyze the project and use Claude to generate a tailored GUARDRAILS.md")
+	fmt.Println("  --simplify-prd    Reprocess .ralph/PRD.md to simplify incomplete tasks (easy/medium, 15-20 min); completed tasks left unchanged")
 	fmt.Println("  --manager         Linear manager mode: automatically process tickets from Linear")
 	fmt.Println("                    Requires config-file (TOML) and iterations parameter")
 	fmt.Println("  --tickets         List all pending tickets from Linear (for testing connectivity)")
@@ -60,7 +62,7 @@ func printHelp() {
 
 func main() {
 	if len(os.Args) < 2 {
-		fmt.Fprintf(os.Stderr, "Usage: %s <iterations> or %s --export-prompts or %s --init [description] or %s --init-guardrails or %s --manager <config-file> <iterations> or %s --tickets <config-file>\n", os.Args[0], os.Args[0], os.Args[0], os.Args[0], os.Args[0], os.Args[0])
+		fmt.Fprintf(os.Stderr, "Usage: %s <iterations> or %s --export-prompts or %s --init [description] or %s --init-guardrails or %s --simplify-prd or %s --manager <config-file> <iterations> or %s --tickets <config-file>\n", os.Args[0], os.Args[0], os.Args[0], os.Args[0], os.Args[0], os.Args[0], os.Args[0])
 		fmt.Fprintf(os.Stderr, "Use --help or -h for more information, or --version/-v for version\n")
 		os.Exit(1)
 	}
@@ -104,6 +106,15 @@ func main() {
 	// Check for init-guardrails flag
 	if os.Args[1] == "--init-guardrails" {
 		if err := initGuardrails(); err != nil {
+			fmt.Fprintf(os.Stderr, "❌ Error: %v\n", err)
+			os.Exit(1)
+		}
+		os.Exit(0)
+	}
+
+	// Check for simplify-prd flag
+	if os.Args[1] == "--simplify-prd" {
+		if err := reprocessPRD(); err != nil {
 			fmt.Fprintf(os.Stderr, "❌ Error: %v\n", err)
 			os.Exit(1)
 		}

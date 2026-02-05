@@ -14,6 +14,23 @@ func readFileContent(filename string) (string, error) {
 	return string(content), nil
 }
 
+// lastOutputSnippet returns the last N lines of output, truncated to max chars, for timeout diagnostics.
+func lastOutputSnippet(output string) string {
+	output = strings.TrimSpace(output)
+	if output == "" {
+		return ""
+	}
+	lines := strings.Split(output, "\n")
+	if len(lines) > TimeoutSnippetMaxLines {
+		lines = lines[len(lines)-TimeoutSnippetMaxLines:]
+	}
+	snippet := strings.Join(lines, "\n")
+	if len(snippet) > TimeoutSnippetMaxChars {
+		snippet = "..." + snippet[len(snippet)-TimeoutSnippetMaxChars:]
+	}
+	return snippet
+}
+
 func executeStepWithRetry(stepNum int, stepName string, timeout int, systemPrompt string, prompt string) (*ClaudeResult, error) {
 	for attempt := 0; attempt < MaxRetries; attempt++ {
 		if attempt > 0 {
@@ -35,9 +52,17 @@ func executeStepWithRetry(stepNum int, stepName string, timeout int, systemPromp
 			if strings.Contains(errStr, "timeout") || strings.Contains(errStr, "Request timeout") {
 				if attempt >= MaxRetries-1 {
 					fmt.Printf("⏱️  %s timed out after %d attempts\n", stepName, MaxRetries)
+					if result != nil && result.Output != "" {
+						snippet := lastOutputSnippet(result.Output)
+						fmt.Printf("Last output before timeout:\n%s\n", snippet)
+					}
 					return result, err
 				}
 				fmt.Printf("⏱️  %s timed out after %ds, will retry...\n", stepName, timeout)
+				if result != nil && result.Output != "" {
+					snippet := lastOutputSnippet(result.Output)
+					fmt.Printf("Last output before timeout:\n%s\n", snippet)
+				}
 				continue
 			}
 			// Display formatted error message (already includes user-friendly formatting)
@@ -119,6 +144,17 @@ func commit(iteration, maxIterations int) (*ClaudeResult, error) {
 	return executeStepWithRetry(6, "💾 Commit...", TimeoutCommit, systemPrompt, prompt)
 }
 
+func planGuardrailVerify(iteration, maxIterations int) (*ClaudeResult, error) {
+	systemPrompt, err := getSystemPrompt()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get system prompt: %v", err)
+	}
+
+	prompt := getPlanGuardrailVerifyPrompt()
+
+	return executeStepWithRetry(0, "🛡️ Plan guardrail verification...", TimeoutGuardrail, systemPrompt, prompt)
+}
+
 func guardrailVerify(iteration, maxIterations int) (*ClaudeResult, error) {
 	systemPrompt, err := getSystemPrompt()
 	if err != nil {
@@ -142,6 +178,18 @@ func workflow1PlanAndImplement(iteration, maxIterations int) (*ClaudeResult, err
 	// If blocked or complete, return early
 	if result.Blocked || result.Complete {
 		return result, nil
+	}
+
+	// Plan guardrail verification (if GUARDRAILS.md exists)
+	if guardrailsExists() {
+		planGuardrailResult, err := planGuardrailVerify(iteration, maxIterations)
+		if err != nil {
+			return nil, err
+		}
+		if planGuardrailResult != nil && planGuardrailResult.Blocked {
+			result.Blocked = true
+			return result, nil
+		}
 	}
 
 	// Implementation
