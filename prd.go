@@ -401,11 +401,25 @@ func extractPRDFromOutput(output string) string {
 		return result
 	}
 
-	// Last resort: return the entire output if it looks like markdown
-	if strings.Contains(output, "## Overview") || strings.Contains(output, "## Tasks") {
-		return strings.TrimSpace(output)
+	// Last resort: only accept output that clearly starts as a PRD document.
+	// Do NOT treat raw session JSON (e.g. tool results containing "## Overview" from file content) as a PRD.
+	trimmed := strings.TrimSpace(output)
+	if trimmed == "" {
+		return ""
 	}
-
+	firstRune := rune(0)
+	for _, r := range trimmed {
+		firstRune = r
+		break
+	}
+	if firstRune == '{' {
+		// Output looks like JSON (e.g. NDJSON session log), not a PRD
+		return ""
+	}
+	if strings.HasPrefix(trimmed, "# Product Requirements Document") ||
+		strings.HasPrefix(trimmed, "## Overview") {
+		return trimmed
+	}
 	return ""
 }
 
